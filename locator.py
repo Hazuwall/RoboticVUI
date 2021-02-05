@@ -38,12 +38,12 @@ def get_dataset_pipeline_builder():
 acoustic_model = None
 
 
-def get_acoustic_model(experiment_name=None, weights_step=None):
+def get_acoustic_model(weights_step=None):
     global acoustic_model
     if acoustic_model is None:
         import models
         acoustic_model = models.AcousticModel(
-            config, get_weights_storage(), experiment_name=experiment_name, weights_step=weights_step)
+            config, get_weights_storage(), weights_step=weights_step)
     return acoustic_model
 
 

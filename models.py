@@ -4,9 +4,8 @@ import tf_utils
 
 
 class AcousticModel(tf.keras.Model):
-    def __init__(self, config, weights_storage: WeightsStorage, experiment_name=None, weights_step=None):
+    def __init__(self, config, weights_storage: WeightsStorage, weights_step=None):
         super(AcousticModel, self).__init__()
-        self.experiment_name = experiment_name
         self.weights_storage = weights_storage
 
         def init_model():
@@ -55,11 +54,11 @@ class AcousticModel(tf.keras.Model):
 
         self.encoder = init_model()
         self.checkpoint_step = self.weights_storage.load(
-            self.encoder, self.experiment_name, weights_step)
+            self.encoder, weights_step)
 
     def save(self, step):
         self.weights_storage.save(
-            self.encoder, self.experiment_name, step=step)
+            self.encoder, step=step)
 
     def encode(self, x, training=False):
         codes = self.encoder(x, training=training)

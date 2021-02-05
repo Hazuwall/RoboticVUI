@@ -1,6 +1,11 @@
 import dsp_utils
 
 """ ============================ Common ===================================="""
+# Experiment
+experiment_name = "lstm_encoder_60"
+build = 1
+plugin_modules = ["config", "frontend", "models", "training"]
+
 # Training
 training_steps = 100
 training_batch_size = 72
@@ -8,8 +13,6 @@ validation_size = 0
 test_size = 0
 display_interval = 100
 checkpoint_interval = 100
-experiment_name = "lstm_encoder_60"
-build = 1
 verbose = False
 models_root = "models\\"
 
@@ -30,11 +33,11 @@ harmonics_count = 32
 frontend_shape = (step_count, harmonics_count)
 
 # Acoustic Model
-acoustic_model_name = 'acoustic_model'
+acoustic_model_name = "acoustic_model"
 embedding_size = None
 
 # Classifier
-classifier_name = 'classifier'
+classifier_name = "classifier"
 
 # Datasets
 dataset_index = 1

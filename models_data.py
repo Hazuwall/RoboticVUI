@@ -1,7 +1,6 @@
 import tensorflow as tf
 from typing import Callable
 import numpy as np
-import os
 import dsp_utils
 from filesystem import FilesystemProvider
 
@@ -10,8 +9,8 @@ class WeightsStorage:
     def __init__(self, filesystem: FilesystemProvider):
         self.filesystem = filesystem
 
-    def load(self, model: tf.keras.Model, experiment_name: str, step=None):
-        model_dir = self.filesystem.get_model_dir(model.name, experiment_name)
+    def load(self, model: tf.keras.Model, step=None):
+        model_dir = self.filesystem.get_model_dir(model.name)
         if step is None:
             start_step = 0
             path = tf.train.latest_checkpoint(model_dir.weights)
@@ -26,8 +25,8 @@ class WeightsStorage:
             model.load_weights(path)
         return start_step
 
-    def save(self, model: tf.keras.Model, experiment_name: str, step: int):
-        model_dir = self.filesystem.get_model_dir(model.name, experiment_name)
+    def save(self, model: tf.keras.Model, step: int):
+        model_dir = self.filesystem.get_model_dir(model.name)
         path = model_dir.checkpoint(step)
         model.save_weights(path)
 

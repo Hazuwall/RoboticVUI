@@ -1,6 +1,5 @@
 import os
-import random
-import string
+import shutil
 from types import SimpleNamespace
 
 CHECKPOINT_PREFIX = "checkpoint-"
@@ -10,16 +9,17 @@ class FilesystemProvider:
     def __init__(self, config):
         self.config = config
 
-    def get_model_dir(self, model_name: str, experiment_name=None) -> SimpleNamespace:
-        if experiment_name is None:
-            experiment_name = self.config.experiment_name
-        experiment_path = self.config.models_root + \
-            str(self.config.build) + '_' + experiment_name + "\\"
-        model_path = experiment_path + model_name + "\\"
+    def get_experiment_dir(self):
+        return "{dir}{build}_{name}\\".format(
+            dir=self.config.models_root, build=self.config.build, name=self.config.experiment_name)
+
+    def get_model_dir(self, model_name: str) -> SimpleNamespace:
+        model_dir = self.get_experiment_dir() + model_name + "\\"
         return SimpleNamespace(
-            weights=model_path,
-            logs=model_path + "logs\\",
-            checkpoint=lambda step: model_path + CHECKPOINT_PREFIX + str(step))
+            plugin_modules=model_dir,
+            weights=model_dir,
+            logs=model_dir + "logs\\",
+            checkpoint=lambda step: model_dir + CHECKPOINT_PREFIX + str(step))
 
     def get_checkpoint_step(self, checkpoint_path: str) -> int:
         filename = os.path.basename(checkpoint_path)
@@ -39,3 +39,10 @@ class FilesystemProvider:
             file_path = os.path.join(dir_path, filename)
             ref_words[word] = file_path
         return ref_words
+
+    def store_plugin_modules(self):
+        dest_dir = self.get_experiment_dir()
+        os.makedirs(dest_dir, exist_ok=True)
+        for module in self.config.plugin_modules:
+            file_name = "{}.py".format(module)
+            shutil.copy(file_name, dest_dir + file_name)

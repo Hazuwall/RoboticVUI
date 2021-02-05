@@ -29,33 +29,29 @@ class AcousticModel(tf.keras.Model):
                 return tf.keras.layers.ReLU()(x)
 
             # Input
-            input = tf.keras.Input(shape=config.preprocess_shape)
+            input = tf.keras.Input(shape=config.frontend_shape)
+            x = tf.cast(input, tf.float32)
 
-            # Time Series
-            x = cnn_block(input, 64, 3)
+            # Phoneme Encoder
+            x = cnn_block(x, 64, 3)
             x = cnn_block(x, 64, 3)
             x = cnn_block(x, 80, 3)
             x = cnn_block(x, 80, 3)
 
-            # Aggregation
+            # Word Encoder
             x = tf.keras.layers.Conv1D(
                 80, 3, padding="same", use_bias=False)(x)
             x = tf.keras.layers.BatchNormalization()(x)
             x = tf.keras.layers.ReLU()(x)
             x = tf.keras.layers.LSTM(256)(x)
-
-            # Embedding
             x = dense_block(x, 192)
             x = dense_block(x, 128)
             x = tf.keras.layers.Dense(60)(x)
-            config.set_embedding_size(x.shape[1])
 
             # Output
-            output = x
-            model = tf.keras.Model(
-                inputs=input, outputs=output, name=config.ACOUSTIC_MODEL_NAME)
-            model.summary()
-            return model
+            config.set_embedding_size(x.shape[1])
+            return tf.keras.Model(
+                inputs=input, outputs=x, name=config.acoustic_model_name)
 
         self.encoder = init_model()
         self.checkpoint_step = self.weights_storage.load(

@@ -26,4 +26,4 @@ class FrontendProcessor:
         # sg = dsp_utils.blur(sg,c.blur_size)
         _, amps = self.get_harmonics(fund_freqs, sg)
         # amps = dsp_utils.norm_harmonics(sg, amps)
-        return amps.astype(np.float32)
+        return amps

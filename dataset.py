@@ -126,7 +126,7 @@ class DatasetPipelineBuilder():
             group_size = size//group_count
             size = group_count*group_size
 
-            out_shape = self.config.preprocess_shape
+            out_shape = self.config.frontend_shape
 
             x = np.zeros([size, out_shape[0], out_shape[1]])
             y = np.zeros([size])

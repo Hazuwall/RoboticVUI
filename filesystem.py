@@ -17,7 +17,7 @@ class FilesystemProvider:
             str(self.config.build) + '_' + experiment_name + "\\"
         model_path = experiment_path + model_name + "\\"
         return SimpleNamespace(
-            weights=model_path + "weights\\",
+            weights=model_path,
             logs=model_path + "logs\\",
             checkpoint=lambda step: model_path + CHECKPOINT_PREFIX + str(step))
 
@@ -31,7 +31,7 @@ class FilesystemProvider:
         return self.config.datasets_root + label + '_' + type_letter + ".hdf5"
 
     def get_reference_word_paths(self):
-        dir_path = self.config.words_dir
+        dir_path = self.config.ref_words_dir
         file_list = os.listdir(dir_path)
         ref_words = {}
         for filename in file_list:

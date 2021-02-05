@@ -50,11 +50,14 @@ def train():
     filesystem = locator.get_filesystem_provider()
 
     optimizer = tf.keras.optimizers.Adam()
-    logs_path = filesystem.get_model_dir(config.ACOUSTIC_MODEL_NAME).logs
+    logs_path = filesystem.get_model_dir(config.acoustic_model_name).logs
     summary_writer = tf.summary.create_file_writer(logs_path)
 
     model = locator.get_acoustic_model()
+    if config.verbose:
+        model.summary()
     start_step = model.checkpoint_step + 1
+    end_step = start_step + config.training_steps
 
     # Graph initialization
     @tf.function
@@ -63,7 +66,7 @@ def train():
             with tf.GradientTape() as tape:
                 codes = model.encode(x, training=True)
                 cost, metrics = compute_loss(codes)
-                if step % config.display_step == 0:
+                if step % config.display_interval == 0:
                     tf.summary.scalar('accuracy36', evaluate(codes), step)
                     tf.summary.scalar('cost', cost, step)
                     tf.summary.scalar('pos_similarity', metrics[0], step)
@@ -77,13 +80,17 @@ def train():
 
     # Training
     print("Optimization Started!")
-    end_step = start_step + config.training_epochs
-    for step in tf.range(start_step, end_step+1, dtype=tf.int64):
+
+    for step in tf.range(start_step, end_step, dtype=tf.int64):
         x = dataset.get_batch()
         train_step(x, step)
         summary_writer.flush()
-        if (step % 1000) == 0:
+
+        if (step % config.checkpoint_interval) == 0:
             model.save(int(step))
+            if config.verbose:
+                print(int(step))
+
     print("Optimization Finished!")
 
 

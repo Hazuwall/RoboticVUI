@@ -12,6 +12,9 @@ def main():
     status("Running training...")
     run_training()
 
+    status("Running inference...")
+    run_inference()
+
     status("Reloading...")
     locator.reset()
     override_config()
@@ -39,6 +42,12 @@ def run_training():
     with HiddenPrints():
         import training
         training.main()
+
+
+def run_inference():
+    with HiddenPrints():
+        import inference
+        inference.main(3)
 
 
 class HiddenPrints:

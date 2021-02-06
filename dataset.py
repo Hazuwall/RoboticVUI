@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import h5py
-from typing import Callable
+from typing import Callable, Optional
 
 from filesystem import FilesystemProvider
 import augmentation as aug
@@ -23,12 +23,12 @@ class HdfStorage:
             f[self.group_label].visititems(lambda t, _: items.append(t))
         return items
 
-    def delete(self, label):
+    def delete(self, label: str):
         """Delete dataset or group"""
         with h5py.File(self.path, 'a') as f:
             del f[self.group_label + label]
 
-    def clear_dataset(self, label):
+    def clear_dataset(self, label: str):
         with h5py.File(self.path, 'a') as f:
             dset = f[self.group_label + label]
             mask = np.ones(len(dset), np.bool)
@@ -41,7 +41,7 @@ class HdfStorage:
             shape[0] = count
             dset.resize(shape)
 
-    def fetch_subset(self, label, start, size, mode="RANDOM", return_indices=False):
+    def fetch_subset(self, label: str, start: int, size: int, mode=RANDOM_FETCH_MODE, return_indices=False):
         """Fetch a subset from the dataset.
         Returns:
             If mode=RANDOM, a random subset of the given size from the dataset
@@ -49,11 +49,11 @@ class HdfStorage:
             If mode=ROW, a subset of items in a row"""
         with h5py.File(self.path, 'r') as f:
             dset = f[self.group_label + label]
-            if mode == "ROW":
+            if mode == ROW_FETCH_MODE:
                 X = dset[start:start+size]
                 indices = range(start, start+size)
             else:
-                if mode == "COUPLED":
+                if mode == COUPLED_FETCH_MODE:
                     indices0 = sorted(random.sample(
                         range(start, len(dset)//4), size//4))
                     indices = []
@@ -90,7 +90,7 @@ class DatasetPipelineBuilder():
     def __init__(self, config, filesystem: FilesystemProvider):
         self.config = config
         self.filesystem = filesystem
-        self.__last_pipe = None
+        self.__last_pipe: Optional[Callable] = None
 
         self.__labeled = False
         self.__start_index = config.validation_size + config.test_size
@@ -105,7 +105,7 @@ class DatasetPipelineBuilder():
     def attach_handler(self, handler: Callable):
         self.__last_pipe = self.__create_pipe(handler, self.__last_pipe)
 
-    def from_labeled_storage(self, dataset_name=None, labels=None):
+    def from_labeled_storage(self, dataset_name: Optional[str] = None, labels: Optional[list] = None):
         self.__labeled = True
         storage_path = self.filesystem.get_dataset_path('h', dataset_name)
         storage = HdfStorage(storage_path, 'harmonics')
@@ -150,7 +150,7 @@ class DatasetPipelineBuilder():
         self.attach_handler(storage_handler)
         return self
 
-    def from_unlabeled_storage(self, dataset_name=None):
+    def from_unlabeled_storage(self, dataset_name: Optional[str] = None):
         storage_path = self.filesystem.get_dataset_path('h', dataset_name)
         storage = HdfStorage(storage_path, 'harmonics')
 
@@ -160,7 +160,7 @@ class DatasetPipelineBuilder():
             x, indices = storage.fetch_subset(
                 '', start_index, size, mode=fetch_mode, return_indices=True)
 
-            if fetch_mode == "COUPLED":
+            if fetch_mode == COUPLED_FETCH_MODE:
                 x = np.reshape(x, (-1, 4, out_shape[0], out_shape[1]))
                 np.random.shuffle(x)
                 x = np.reshape(x, (-1, out_shape[0], out_shape[1]))

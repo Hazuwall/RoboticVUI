@@ -1,4 +1,5 @@
 import config
+from typing import Optional
 
 
 def get_config():
@@ -25,7 +26,7 @@ def get_reference_words_dictionary():
     return models_data.ReferenceWordsDictionary(config, get_filesystem_provider(), get_frames_to_embedding_service().encode)
 
 
-def get_dataset_provider(label=None, embeddings_return=False, do_augment=False):
+def get_dataset_provider(label: Optional[str] = None, embeddings_return=False, do_augment=False):
     import dataset
     return dataset.DatasetProvider(config, get_filesystem_provider(), label=label, embeddings_return=embeddings_return, do_augment=do_augment)
 
@@ -38,7 +39,7 @@ def get_dataset_pipeline_builder():
 acoustic_model = None
 
 
-def get_acoustic_model(weights_step=None):
+def get_acoustic_model(weights_step: Optional[int] = None):
     global acoustic_model
     if acoustic_model is None:
         import models

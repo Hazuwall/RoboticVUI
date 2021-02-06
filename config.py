@@ -1,5 +1,6 @@
 import dsp_utils
 import os
+from typing import Optional
 
 """ ============================ Common ===================================="""
 # Experiment
@@ -37,7 +38,7 @@ frontend_shape = (step_count, harmonics_count)
 
 # Acoustic Model
 acoustic_model_name = "acoustic_model"
-embedding_size = None
+embedding_size: Optional[int] = None
 
 # Classifier
 classifier_name = "classifier"

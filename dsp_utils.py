@@ -2,25 +2,26 @@ import numpy as np
 import scipy.signal
 import math
 import soundfile as sf
+from typing import Optional
 
 
-def get_framerate(filepath):
+def get_framerate(filepath: str) -> int:
     """Get a framerate of the given audiofile. MP3 is not supported."""
     with sf.SoundFile(filepath, mode='r') as f:
         return f.samplerate
 
 
-def read(filepath):
+def read(filepath: str) -> np.ndarray:
     """Get frames of the given audiofile first channel. MP3 is not supported."""
     return sf.read(filepath, dtype='float32', always_2d=True)[0][:, 0]
 
 
-def write(filepath, frames, framerate):
+def write(filepath: str, frames: np.ndarray, framerate: int):
     """Save frames to the audiofile of the arbitrary format. MP3 is not supported."""
     sf.write(filepath, frames, framerate)
 
 
-def make_spectrogram(frames, seg_length, step_count=None, win_flag=True, keep_phase=False):
+def make_spectrogram(frames: np.ndarray, seg_length: int, step_count: Optional[int] = None, win_flag=True, keep_phase=False) -> np.ndarray:
     if step_count is None:
         step = seg_length//2
         step_count = len(frames)//step
@@ -47,7 +48,7 @@ def make_spectrogram(frames, seg_length, step_count=None, win_flag=True, keep_ph
     return sg
 
 
-def restore_frames(spectrogram, seg_length=None, frame_count=None, win_flag=True):
+def restore_frames(spectrogram: np.ndarray, seg_length: Optional[int] = None, frame_count: Optional[int] = None, win_flag=True) -> np.ndarray:
     step_count = len(spectrogram)
     if (seg_length is None) and (frame_count is None):
         raise ValueError
@@ -71,23 +72,23 @@ def restore_frames(spectrogram, seg_length=None, frame_count=None, win_flag=True
     return frames
 
 
-def blur(spectrogram, size):
+def blur(spectrogram: np.ndarray, size: int) -> np.ndarray:
     return scipy.ndimage.medfilt(spectrogram, [1, size])
 
 
-def get_freq_resolution(framerate, freq_count):
+def get_freq_resolution(framerate: int, freq_count: int) -> float:
     return framerate / 2 / (freq_count - 1)
 
 
-def get_freq_count(seg_length):
+def get_freq_count(seg_length: int) -> int:
     return (seg_length//2) + 1
 
 
-def get_best_segment_length(framerate):
+def get_best_segment_length(framerate: int) -> int:
     return int(2 ** round(np.log2(framerate / 32)))
 
 
-def fft_autocorr(x):
+def fft_autocorr(x: np.ndarray) -> np.ndarray:
     xp = np.fft.ifftshift((x - np.average(x))/np.std(x))
     n, = xp.shape
     xp = np.r_[xp[:n//2], np.zeros_like(xp), xp[n//2:]]
@@ -97,7 +98,7 @@ def fft_autocorr(x):
     return np.real(pi)[:n//2]/(np.arange(n//2)[::-1]+n//2)
 
 
-def get_fund_freq(frames, framerate, step_count, min_freq=80, max_freq=300):
+def get_fund_freq(frames: np.ndarray, framerate: int, step_count: int, min_freq=80, max_freq=300) -> np.ndarray:
     max_freq_offset = framerate // max_freq
     sample_length = framerate // min_freq
     step = math.ceil(len(frames)/step_count)
@@ -110,7 +111,7 @@ def get_fund_freq(frames, framerate, step_count, min_freq=80, max_freq=300):
     return funds
 
 
-def get_harmonics(fund_freqs, freq_res, count, spectrogram=None):
+def get_harmonics(fund_freqs: np.ndarray, freq_res: float, count: int, spectrogram: Optional[np.ndarray] = None) -> np.ndarray:
     harmonics = np.broadcast_to(
         fund_freqs, (count, len(fund_freqs))).T * np.arange(1, count+1)
     if spectrogram is None:
@@ -125,7 +126,7 @@ def get_harmonics(fund_freqs, freq_res, count, spectrogram=None):
     return harmonics, amps
 
 
-def restore_spectrogram(harmonics_amps, freq_count, freq_res, fund_freq=200):
+def restore_spectrogram(harmonics_amps: np.ndarray, freq_count: int, freq_res: float, fund_freq=200) -> np.ndarray:
     harmonics_count = harmonics_amps.shape[1]
     step_count = harmonics_amps.shape[0]
     harmonics = np.tile(np.arange(1, harmonics_count+1),
@@ -141,7 +142,7 @@ def restore_spectrogram(harmonics_amps, freq_count, freq_res, fund_freq=200):
     return spectrogram
 
 
-def norm_harmonics(spectrogram, harmonics_amps):
+def norm_harmonics(spectrogram: np.ndarray, harmonics_amps: np.ndarray) -> np.ndarray:
     amps = spectrogram
     std = np.std(amps, axis=1, keepdims=True)
     mean = np.mean(amps, axis=1, keepdims=True)
@@ -158,7 +159,7 @@ def norm_harmonics(spectrogram, harmonics_amps):
     return harmonics_amps
 
 
-def detect_words(sg) -> np.ndarray:
+def detect_words(sg: np.ndarray) -> np.ndarray:
     dev = np.std(sg, axis=1)**2
     #diff_kernel = np.array([-1,0,1])
     #d_dev = scipy.signal.convolve(diff_kernel,k,mode="same")

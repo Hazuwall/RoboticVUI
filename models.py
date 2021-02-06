@@ -1,10 +1,11 @@
 import tensorflow as tf
+from typing import Optional
 from models_data import WeightsStorage, ReferenceWordsDictionary
 import tf_utils
 
 
 class AcousticModel(tf.keras.Model):
-    def __init__(self, config, weights_storage: WeightsStorage, weights_step=None):
+    def __init__(self, config, weights_storage: WeightsStorage, weights_step: Optional[int] = None):
         super(AcousticModel, self).__init__()
         self.weights_storage = weights_storage
 

@@ -13,7 +13,7 @@ class FramesToEmbeddingService:
         self.frontend = frontend
         self.acoustic_model = acoustic_model
 
-    def encode(self, frames: np.ndarray, indices=None):
+    def encode(self, frames: np.ndarray, indices: Optional[np.ndarray] = None):
         if indices is None:
             harmonics = np.expand_dims(self.frontend.process(frames), axis=0)
         else:
@@ -64,7 +64,7 @@ class VoiceUserInterface:
     def __init__(self, config, word_recognizer: WordRecognizer, word_handler: Optional[Callable] = None):
         self.config = config
         self.word_recognizer = word_recognizer
-        self.frames_buffer = None
+        self.frames_buffer: Optional[np.ndarray] = None
         self.word_handler = word_handler if word_handler is not None else self.__dummy_handler
 
     def __dummy_handler(word: str, weight: float):

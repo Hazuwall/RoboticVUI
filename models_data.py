@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import Callable
+from typing import Callable, Optional
 import numpy as np
 import dsp_utils
 from filesystem import FilesystemProvider
@@ -9,7 +9,7 @@ class WeightsStorage:
     def __init__(self, filesystem: FilesystemProvider):
         self.filesystem = filesystem
 
-    def load(self, model: tf.keras.Model, step=None):
+    def load(self, model: tf.keras.Model, step: Optional[int] = None):
         model_dir = self.filesystem.get_model_dir(model.name)
         if step is None:
             start_step = 0

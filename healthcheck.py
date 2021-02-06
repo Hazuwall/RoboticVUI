@@ -6,13 +6,18 @@ import locator
 
 def main():
     status("Arranging...")
-    arrange()
+    override_config()
+    locator.get_filesystem_provider().clear_experiment()
 
-    status("Running...")
-    run()
+    status("Running training...")
+    run_training()
 
-    status("Running once more...")
-    run()
+    status("Reloading...")
+    locator.reset()
+    override_config()
+
+    status("Continuing training...")
+    run_training()
 
     status("All right!")
 
@@ -21,17 +26,16 @@ def status(text):
     print(colored("[Healthcheck]: " + text, 'green'))
 
 
-def arrange():
+def override_config():
     config = locator.get_config()
     config.experiment_name = "healthcheck"
     config.build = 0
     config.training_steps = 2
     config.display_interval = 1
     config.checkpoint_interval = 2
-    locator.get_filesystem_provider().clear_experiment()
 
 
-def run():
+def run_training():
     with HiddenPrints():
         import training
         training.main()

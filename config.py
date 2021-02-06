@@ -1,4 +1,5 @@
 import dsp_utils
+import os
 
 """ ============================ Common ===================================="""
 # Experiment
@@ -15,6 +16,8 @@ display_interval = 100
 checkpoint_interval = 100
 verbose = False
 models_root = "models\\"
+if not verbose:
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Raw WAV
 framerate = 16000

@@ -28,7 +28,8 @@ class AcousticModel(tf.keras.Model):
                 return tf.keras.layers.ReLU()(x)
 
             # Input
-            input = tf.keras.Input(shape=config.frontend_shape)
+            input = tf.keras.Input(
+                shape=config.frontend_shape, dtype=tf.float64)
             x = tf.cast(input, tf.float32)
 
             # Phoneme Encoder
@@ -59,6 +60,7 @@ class AcousticModel(tf.keras.Model):
     def save(self, step):
         self.weights_storage.save(
             self.encoder, step=step)
+        self.checkpoint_step = step
 
     def encode(self, x, training=False):
         codes = self.encoder(x, training=training)

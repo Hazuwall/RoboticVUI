@@ -72,3 +72,13 @@ def get_word_recognizer():
 def get_voice_user_interface(word_handler):
     import services
     return services.VoiceUserInterface(config, get_word_recognizer(), word_handler)
+
+
+def reset():
+    import importlib
+    importlib.reload(config)
+
+    global acoustic_model
+    global classifier
+    acoustic_model = None
+    classifier = None

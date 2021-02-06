@@ -46,3 +46,7 @@ class FilesystemProvider:
         for module in self.config.plugin_modules:
             file_name = "{}.py".format(module)
             shutil.copy(file_name, dest_dir + file_name)
+
+    def clear_experiment(self):
+        dir = self.get_experiment_dir()
+        shutil.rmtree(dir, ignore_errors=True)

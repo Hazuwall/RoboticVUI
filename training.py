@@ -2,6 +2,16 @@ import tensorflow as tf
 import tf_utils
 import locator
 
+config = None
+
+
+def main():
+    global config
+    config = locator.get_config()
+    locator.get_filesystem_provider().store_plugin_modules()
+
+    train()
+
 
 def compute_loss(codes):
     coupled_codes = tf.reshape(codes, (-1, 2, config.embedding_size))
@@ -93,7 +103,4 @@ def train():
 
 
 if __name__ == "__main__":
-    locator.get_filesystem_provider().store_plugin_modules()
-    config = locator.get_config()
-
-    train()
+    main()

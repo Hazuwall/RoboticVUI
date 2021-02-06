@@ -1,7 +1,7 @@
 import tensorflow as tf
 from typing import Optional
-from models_data import WeightsStorage, ReferenceWordsDictionary
-import tf_utils
+from models.data_access import WeightsStorage, ReferenceWordsDictionary
+import models.tf_utils
 
 
 class AcousticModel(tf.keras.Model):
@@ -50,7 +50,6 @@ class AcousticModel(tf.keras.Model):
             x = tf.keras.layers.Dense(60)(x)
 
             # Output
-            config.set_embedding_size(x.shape[1])
             return tf.keras.Model(
                 inputs=input, outputs=x, name=config.acoustic_model_name)
 
@@ -83,7 +82,7 @@ class Classifier:
 
         embeddings = tf.reshape(
             embeddings, [-1, 1, self.config.embedding_size])
-        similarity = tf_utils.cos_similarity(
+        similarity = models.tf_utils.cos_similarity(
             embeddings, ref_embeddings, axis=2)
         return similarity
 

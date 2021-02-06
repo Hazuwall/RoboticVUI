@@ -1,8 +1,8 @@
 import tensorflow as tf
 from typing import Callable, Optional
 import numpy as np
-import dsp_utils
-from filesystem import FilesystemProvider
+import frontend.dsp as dsp
+from infrastructure.filesystem import FilesystemProvider
 
 
 class WeightsStorage:
@@ -46,7 +46,7 @@ class ReferenceWordsDictionary():
         words = []
         embeddings = []
         for word, path in ref_word_paths.items():
-            frames = dsp_utils.read(path)
+            frames = dsp.read(path)
             embedding = self.frames_encoding_handler(frames)
             words.append(word)
             embeddings.append(embedding)

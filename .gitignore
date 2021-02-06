@@ -126,5 +126,5 @@ dmypy.json
 # Sounds
 *.wav
 
-# Models
-/models
+# Experiments
+/experiments

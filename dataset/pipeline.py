@@ -2,9 +2,8 @@ import random
 import numpy as np
 import h5py
 from typing import Callable, Optional
-
-from filesystem import FilesystemProvider
-import augmentation as aug
+from infrastructure.filesystem import FilesystemProvider
+import dataset.augmentation as aug
 
 RANDOM_FETCH_MODE = "RANDOM"
 ROW_FETCH_MODE = "ROW"

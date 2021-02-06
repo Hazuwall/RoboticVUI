@@ -1,6 +1,6 @@
 import tensorflow as tf
-import tf_utils
-import locator
+import models.tf_utils as tf_utils
+import infrastructure.locator as locator
 
 config = None
 
@@ -8,7 +8,7 @@ config = None
 def main():
     global config
     config = locator.get_config()
-    locator.get_filesystem_provider().store_plugin_modules()
+    locator.get_filesystem_provider().store_core_modules()
 
     train()
 

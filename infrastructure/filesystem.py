@@ -1,8 +1,7 @@
 import os
 import shutil
 from types import SimpleNamespace
-
-CHECKPOINT_PREFIX = "checkpoint-"
+from typing import Optional
 
 
 class FilesystemProvider:
@@ -11,7 +10,7 @@ class FilesystemProvider:
 
     def get_experiment_dir(self):
         return "{dir}{build}_{name}\\".format(
-            dir=self.config.models_root, build=self.config.build, name=self.config.experiment_name)
+            dir=self.config.experiments_dir, build=self.config.build, name=self.config.experiment_name)
 
     def get_model_dir(self, model_name: str) -> SimpleNamespace:
         model_dir = self.get_experiment_dir() + model_name + "\\"
@@ -19,16 +18,17 @@ class FilesystemProvider:
             plugin_modules=model_dir,
             weights=model_dir,
             logs=model_dir + "logs\\",
-            checkpoint=lambda step: model_dir + CHECKPOINT_PREFIX + str(step))
+            checkpoint=lambda step: model_dir + self.config.checkpoint_prefix + str(step))
 
     def get_checkpoint_step(self, checkpoint_path: str) -> int:
         filename = os.path.basename(checkpoint_path)
-        return int(filename[len(CHECKPOINT_PREFIX):])
+        prefix_length = len(self.config.checkpoint_prefix)
+        return int(filename[prefix_length:])
 
-    def get_dataset_path(self, type_letter, label=None):
+    def get_dataset_path(self, type_letter: str, label: Optional[str] = None):
         if label is None:
             label = self.config.dataset_label
-        return self.config.datasets_root + label + '_' + type_letter + ".hdf5"
+        return self.config.datasets_dir + label + '_' + type_letter + ".hdf5"
 
     def get_reference_word_paths(self):
         dir_path = self.config.ref_words_dir
@@ -40,12 +40,15 @@ class FilesystemProvider:
             ref_words[word] = file_path
         return ref_words
 
-    def store_plugin_modules(self):
+    def store_core_modules(self):
+        src_dir = self.config.core_dir
         dest_dir = self.get_experiment_dir()
         os.makedirs(dest_dir, exist_ok=True)
-        for module in self.config.plugin_modules:
-            file_name = "{}.py".format(module)
-            shutil.copy(file_name, dest_dir + file_name)
+        file_list = os.listdir(src_dir)
+        for filename in file_list:
+            src_path = src_dir + filename
+            if os.path.isfile(src_path):
+                shutil.copy(src_path, dest_dir + filename)
 
     def clear_experiment(self):
         dir = self.get_experiment_dir()

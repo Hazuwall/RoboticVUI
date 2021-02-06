@@ -1,7 +1,8 @@
+#from ._setup import *
+from termcolor import colored
 import os
 import sys
-from termcolor import colored
-import locator
+import infrastructure.locator as locator
 
 
 def main():
@@ -40,8 +41,8 @@ def override_config():
 
 def run_training():
     with HiddenPrints():
-        import training
-        training.main()
+        import core.training
+        core.training.main()
 
 
 def run_inference():

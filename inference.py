@@ -1,5 +1,5 @@
 from typing import Optional
-import locator
+import infrastructure.locator as locator
 
 
 def main(duration: Optional[float] = None):

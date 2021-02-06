@@ -15,6 +15,9 @@ silence_word = "_silence"
 unknown_word = "_unknown"
 
 # Training
+training_steps = 100
+display_interval = 100
+checkpoint_interval = 100
 verbose = False
 
 if not verbose:

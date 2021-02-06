@@ -4,12 +4,9 @@ experiment_name = "lstm_encoder_60"
 build = 1
 
 # Training
-training_steps = 100
 training_batch_size = 72
 validation_size = 0
 test_size = 0
-display_interval = 100
-checkpoint_interval = 100
 
 # Raw WAV
 framerate = 16000

@@ -55,6 +55,9 @@ aug_rate = 0.3
 datasets_root = "C:\\Datasets\\Audio\\"
 
 # Recognition
+min_word_weight = 0.75
+silence_word = "_silence"
+unknown_word = "_unknown"
 ref_words_dir = "words\\"
 
 

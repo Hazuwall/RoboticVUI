@@ -1,9 +1,14 @@
+from typing import Optional
 import locator
 
 
-def word_handler(word, weight):
-    print(word + ", " + str(weight))
+def main(duration: Optional[float] = None):
+    def word_handler(word, weight):
+        print(word + ", " + str(weight))
+
+    vui = locator.get_voice_user_interface(word_handler)
+    vui.run(duration)
 
 
-vui = locator.get_voice_user_interface(word_handler)
-vui.run()
+if __name__ == "__main__":
+    main()

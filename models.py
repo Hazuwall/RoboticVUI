@@ -78,10 +78,10 @@ class Classifier:
     def classify(self, embeddings: tf.Tensor):
         ref_embeddings = self.words_dictionary.embeddings
         ref_embeddings = tf.reshape(
-            ref_embeddings, [-1, self.config.embedding_features, 1])
+            ref_embeddings, [1, -1, self.config.embedding_size])
 
         embeddings = tf.reshape(
-            embeddings, [1, -1, self.config.embedding_features])
+            embeddings, [-1, 1, self.config.embedding_size])
         similarity = tf_utils.cos_similarity(
             embeddings, ref_embeddings, axis=2)
         return similarity

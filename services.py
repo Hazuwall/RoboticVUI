@@ -1,10 +1,9 @@
 import numpy as np
 import pyaudio
 import time
-from typing import Callable
+from typing import Callable, Optional
 import dsp_utils
 from models import AcousticModel, Classifier
-from models_data import ReferenceWordsDictionary
 from frontend import FrontendProcessor
 
 
@@ -19,7 +18,7 @@ class FramesToEmbeddingService:
             harmonics = np.expand_dims(self.frontend.process(frames), axis=0)
         else:
             harmonics = np.zeros(
-                shape=(len(indices), self.config.preprocess_shape[0], self.config.preprocess_shape[1]))
+                shape=(len(indices), self.config.frontend_shape[0], self.config.frontend_shape[1]))
             for i in range(len(indices)):
                 start = indices[i]*self.config.seg_length//2
                 end = start + self.config.framerate
@@ -40,7 +39,7 @@ class WordRecognizer():
         self.classifier = classifier
 
     def recognize(self, frames):
-        word = "_silence"
+        word = self.config.silence_word
         weight = 0
         sg = dsp_utils.make_spectrogram(frames, self.config.seg_length)
         indices = dsp_utils.detect_words(sg)
@@ -53,38 +52,54 @@ class WordRecognizer():
             best_fragment_logits = logits[best_fragment_index]
 
             weight = np.max(best_fragment_logits)
-            if weight > 0.75:
+            if weight > self.config.min_word_weight:
                 word_index = np.argmax(best_fragment_logits)
                 word = self.classifier.get_word(int(word_index))
             else:
-                word = "_unknown"
+                word = self.config.unknown_word
         return word, weight
 
 
 class VoiceUserInterface:
-    def __init__(self, config, word_recognizer: WordRecognizer, word_handler: Callable):
+    def __init__(self, config, word_recognizer: WordRecognizer, word_handler: Optional[Callable] = None):
         self.config = config
         self.word_recognizer = word_recognizer
         self.frames_buffer = None
-        self.word_handler = word_handler
+        self.word_handler = word_handler if word_handler is not None else self.__dummy_handler
 
-    def run(self):
+    def __dummy_handler(word: str, weight: float):
+        pass
+
+    def __convert_to_frames_array(self, data):
+        frames = np.fromstring(data, dtype=np.int16)[::2]
+        high, low = abs(max(frames)), abs(min(frames))
+        return frames / max(high, low)
+
+    def __should_continue(self, start_time: float, max_duration: Optional[float]):
+        flag = pyaudio.paContinue
+        if (max_duration is not None) and (time.monotonic() - start_time > max_duration):
+            flag = pyaudio.paAbort
+        return flag
+
+    def run(self, duration: Optional[float] = None, filter_words=True):
         buffer_length = self.config.framerate//2
         self.frames_buffer = np.zeros(buffer_length*3)
         audio = pyaudio.PyAudio()
 
+        start_time = time.monotonic()
+
         def callback(in_data, frame_count, time_info, status):
-            frames = np.fromstring(in_data, dtype=np.int16)[::2]
-            high, low = abs(max(frames)), abs(min(frames))
-            self.frames_buffer[2*frame_count:] = frames / max(high, low)
+            self.frames_buffer[2 *
+                               frame_count:] = self.__convert_to_frames_array(in_data)
 
             word, weight = self.word_recognizer.recognize(self.frames_buffer)
-            self.word_handler(word, weight)
+            if (not filter_words) or (weight > self.config.min_word_weight):
+                self.word_handler(word, weight)
 
             self.frames_buffer = np.roll(
                 self.frames_buffer, -frame_count, axis=0)
-            #flag = pyaudio.paContinue if step < duration*2 else pyaudio.paAbort
-            return (in_data, pyaudio.paContinue)
+
+            return (in_data, self.__should_continue(start_time, duration))
 
         stream = audio.open(format=pyaudio.paInt16, channels=2,
                             rate=self.config.framerate, input=True,
@@ -92,12 +107,15 @@ class VoiceUserInterface:
                             frames_per_buffer=buffer_length,
                             stream_callback=callback)
 
-        print("Start recording...")
-        stream.start_stream()
-        while stream.is_active():
-            time.sleep(0.1)
-        print("Stop recording...")
-
-        stream.stop_stream()
-        stream.close()
-        audio.terminate()
+        try:
+            print("Start recording...")
+            stream.start_stream()
+            while stream.is_active():
+                time.sleep(0.1)
+            print("Stop recording...")
+        except KeyboardInterrupt:
+            pass
+        finally:
+            stream.stop_stream()
+            stream.close()
+            audio.terminate()

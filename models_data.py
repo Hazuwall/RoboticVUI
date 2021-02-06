@@ -45,7 +45,7 @@ class ReferenceWordsDictionary():
         ref_word_paths = self.filesystem.get_reference_word_paths()
         words = []
         embeddings = []
-        for word, path in ref_word_paths:
+        for word, path in ref_word_paths.items():
             frames = dsp_utils.read(path)
             embedding = self.frames_encoding_handler(frames)
             words.append(word)

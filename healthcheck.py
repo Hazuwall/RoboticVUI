@@ -41,8 +41,10 @@ def override_config():
 
 def run_training():
     with HiddenPrints():
-        import core.training
-        core.training.main()
+        import train
+        stages = locator.get_config().stages
+        for stage in range(stages):
+            train.main(stage)
 
 
 def run_inference():

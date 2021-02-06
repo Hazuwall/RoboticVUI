@@ -7,6 +7,7 @@ build = 1
 training_batch_size = 72
 validation_size = 0
 test_size = 0
+stages = 1
 
 # Raw WAV
 framerate = 16000

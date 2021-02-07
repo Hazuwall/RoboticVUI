@@ -241,3 +241,12 @@ class DatasetPipelineBuilder():
 
     def build(self):
         return DatasetPipeline(self.__last_pipe, self.__start_index, self.__size, self.__fetch_mode)
+
+
+class DatasetPipelineFactory():
+    def __init__(self, config, filesystem: FilesystemProvider) -> None:
+        self._config = config
+        self._filesystem = filesystem
+
+    def get_builder(self) -> DatasetPipelineBuilder:
+        return DatasetPipelineBuilder(self._config, self._filesystem)

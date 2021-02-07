@@ -17,13 +17,18 @@ class AcousticModelBase(ABC):
     def get_checkpoint_step(self, stage: int = 0) -> int:
         return self._stage_checkpoints[stage]
 
-    @ abstractmethod
+    @abstractmethod
     def save(self, step: int, stage: int = 0) -> None:
         pass
 
-    @ abstractmethod
+    @abstractmethod
     def encode(self, x: np.ndarray, training: bool = False) -> tf.Tensor:
         pass
+
+    @property
+    @abstractmethod
+    def encoder(self):
+        return self._encoder
 
 
 class ClassifierBase(ABC):
@@ -34,6 +39,6 @@ class ClassifierBase(ABC):
     def get_word(self, index: int) -> List[str]:
         return self._words_dictionary.words[index]
 
-    @ abstractmethod
+    @abstractmethod
     def classify(self, embeddings: tf.Tensor) -> tf.Tensor:
         pass

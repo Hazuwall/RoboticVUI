@@ -5,8 +5,7 @@ import infrastructure.locator as locator
 
 def main(stage: int = 0):
     config = locator.get_config()
-    acoustic_model = locator.get_acoustic_model()
-    trainer = core.training.get_trainer(config, locator, stage)
+    trainer = locator.get_trainer_factory().get_trainer(stage)
 
     if config.verbose:
         trainer.model.summary()

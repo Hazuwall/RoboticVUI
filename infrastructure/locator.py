@@ -33,9 +33,9 @@ def get_reference_words_dictionary():
     return reference_words_dictionary
 
 
-def get_dataset_pipeline_builder():
+def get_dataset_pipeline_factory():
     import dataset.pipeline as module
-    return module.DatasetPipelineBuilder(config, get_filesystem_provider())
+    return module.DatasetPipelineFactory(config, get_filesystem_provider())
 
 
 acoustic_model = None
@@ -75,6 +75,11 @@ def get_word_recognizer():
 def get_voice_user_interface(word_handler):
     import recognition.services as module
     return module.VoiceUserInterface(config, get_word_recognizer(), word_handler)
+
+
+def get_trainer_factory():
+    import core.training as module
+    return module.TrainerFactory(config, get_filesystem_provider(), get_acoustic_model(), get_dataset_pipeline_factory())
 
 
 def reset():

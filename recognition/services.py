@@ -3,12 +3,12 @@ import pyaudio
 import time
 from typing import Callable, Optional
 import frontend.dsp as dsp
-from core.models import Classifier
+from models.abstract import ClassifierBase
 from models.services import FramesToEmbeddingService
 
 
 class WordRecognizer():
-    def __init__(self, config, frames_to_embedding_service: FramesToEmbeddingService, classifier: Classifier):
+    def __init__(self, config, frames_to_embedding_service: FramesToEmbeddingService, classifier: ClassifierBase):
         self.config = config
         self.frames_to_embedding_service = frames_to_embedding_service
         self.classifier = classifier

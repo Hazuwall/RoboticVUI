@@ -1,11 +1,11 @@
 import numpy as np
 from typing import Optional
-from core.frontend import FrontendProcessor
-from core.models import AcousticModel
+from frontend.abstract import FrontendProcessorBase
+from models.abstract import AcousticModelBase
 
 
 class FramesToEmbeddingService:
-    def __init__(self, config, frontend: FrontendProcessor, acoustic_model: AcousticModel):
+    def __init__(self, config, frontend: FrontendProcessorBase, acoustic_model: AcousticModelBase):
         self.config = config
         self.frontend = frontend
         self.acoustic_model = acoustic_model

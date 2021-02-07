@@ -11,6 +11,13 @@
                 "kind": "test",
                 "isDefault": true
             },
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
         },
         {
             "label": "Train",

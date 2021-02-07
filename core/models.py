@@ -1,13 +1,15 @@
+import numpy as np
 import tensorflow as tf
-from typing import Optional
+from typing import List, Optional
 from models.data_access import WeightsStorage, ReferenceWordsDictionary
 import models.tf_utils
+from models.abstract import AcousticModelBase, ClassifierBase
 
 
-class AcousticModel(tf.keras.Model):
-    def __init__(self, config, weights_storage: WeightsStorage, weights_step: Optional[int] = None):
-        super(AcousticModel, self).__init__()
-        self.weights_storage = weights_storage
+class AcousticModel(AcousticModelBase):
+    def __init__(self, config, weights_storage: WeightsStorage, stage_checkpoints: Optional[List[int]] = None) -> None:
+        super(AcousticModel, self).__init__(
+            config, weights_storage, stage_checkpoints)
 
         def init_model():
             def cnn_block(x, filters, kernel_size):
@@ -53,38 +55,35 @@ class AcousticModel(tf.keras.Model):
             return tf.keras.Model(
                 inputs=input, outputs=x, name=config.acoustic_model_name)
 
-        self.encoder = init_model()
-        self.checkpoint_step = self.weights_storage.load(
-            self.encoder, weights_step)
+        self._encoder: tf.keras.Model = init_model()
+        self._stage_checkpoints[0] = self._weights_storage.load(
+            self._encoder, self._stage_checkpoints[0])
 
-    def save(self, step):
-        self.weights_storage.save(
-            self.encoder, step=step)
-        self.checkpoint_step = step
+    def save(self, step: int) -> None:
+        self._weights_storage.save(
+            self._encoder, step=step)
+        self._stage_checkpoints[0] = step
 
-    def encode(self, x, training=False):
-        codes = self.encoder(x, training=training)
+    def encode(self, x: np.ndarray, training: bool = False) -> tf.Tensor:
+        codes = self._encoder(x, training=training)
         return tf.linalg.normalize(codes, axis=1)[0]
 
+    @property
+    def encoder(self):
+        return self._encoder
 
-class Classifier:
-    def __init__(self, config, words_dictionary: ReferenceWordsDictionary):
-        self.config = config
-        self.words_dictionary = words_dictionary
 
-    def update(self):
-        self.words_dictionary.update()
+class Classifier(ClassifierBase):
+    def __init__(self, config, words_dictionary: ReferenceWordsDictionary) -> None:
+        super(Classifier, self).__init__(config, words_dictionary)
 
-    def classify(self, embeddings: tf.Tensor):
-        ref_embeddings = self.words_dictionary.embeddings
+    def classify(self, embeddings: tf.Tensor) -> tf.Tensor:
+        ref_embeddings = self._words_dictionary.embeddings
         ref_embeddings = tf.reshape(
-            ref_embeddings, [1, -1, self.config.embedding_size])
+            ref_embeddings, [1, -1, self._config.embedding_size])
 
         embeddings = tf.reshape(
-            embeddings, [-1, 1, self.config.embedding_size])
+            embeddings, [-1, 1, self._config.embedding_size])
         similarity = models.tf_utils.cos_similarity(
             embeddings, ref_embeddings, axis=2)
         return similarity
-
-    def get_word(self, index: int):
-        return self.words_dictionary.words[index]

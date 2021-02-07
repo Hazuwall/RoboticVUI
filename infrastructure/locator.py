@@ -1,5 +1,5 @@
 import config
-from typing import Optional
+from typing import List, Optional
 
 
 def get_config():
@@ -21,9 +21,16 @@ def get_weights_storage():
     return module.WeightsStorage(get_filesystem_provider())
 
 
+reference_words_dictionary = None
+
+
 def get_reference_words_dictionary():
-    import models.data_access as module
-    return module.ReferenceWordsDictionary(config, get_filesystem_provider(), get_frames_to_embedding_service().encode)
+    global reference_words_dictionary
+    if reference_words_dictionary is None:
+        import models.data_access as module
+        reference_words_dictionary = module.ReferenceWordsDictionary(
+            config, get_filesystem_provider(), get_frames_to_embedding_service().encode)
+    return reference_words_dictionary
 
 
 def get_dataset_pipeline_builder():
@@ -34,12 +41,12 @@ def get_dataset_pipeline_builder():
 acoustic_model = None
 
 
-def get_acoustic_model(weights_step: Optional[int] = None):
+def get_acoustic_model(stage_checkpoints: Optional[List[Optional[int]]] = None):
     global acoustic_model
     if acoustic_model is None:
         import core.models as module
         acoustic_model = module.AcousticModel(
-            config, get_weights_storage(), weights_step=weights_step)
+            config, get_weights_storage(), stage_checkpoints=stage_checkpoints)
     return acoustic_model
 
 
@@ -76,5 +83,7 @@ def reset():
 
     global acoustic_model
     global classifier
+    global reference_words_dictionary
     acoustic_model = None
     classifier = None
+    reference_words_dictionary = None

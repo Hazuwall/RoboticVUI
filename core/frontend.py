@@ -1,29 +1,25 @@
 import numpy as np
 import frontend.dsp as dsp
+from frontend.abstract import FrontendProcessorBase
 
 
-class FrontendProcessor:
+class FrontendProcessor(FrontendProcessorBase):
     def __init__(self, config):
-        self.config = config
-
-    def make_spectrogram(self, frames):
-        return dsp.make_spectrogram(frames, seg_length=self.config.seg_length, step_count=self.config.spectrums_per_sec, keep_phase=False)
-
-    def get_fund_freq(self, frames):
-        return dsp.get_fund_freq(frames, self.config.framerate, self.config.spectrums_per_sec, min_freq=self.config.min_fund_freq, max_freq=self.config.max_fund_freq)
-
-    def get_harmonics(self, fund_freqs, spectrogram):
-        return dsp.get_harmonics(fund_freqs, self.config.freq_res, self.config.harmonics_count, spectrogram=spectrogram)
+        super(FrontendProcessor, self).__init__(config)
 
     def process(self, frames):
-        if len(frames) < self.config.framerate:
-            frames = np.pad(frames, (0, self.config.framerate-len(frames)))
+        if len(frames) < self._config.framerate:
+            frames = np.pad(frames, (0, self._config.framerate-len(frames)))
         else:
-            frames = frames[:self.config.framerate]
+            frames = frames[:self._config.framerate]
 
-        sg = self.make_spectrogram(frames)
-        fund_freqs = self.get_fund_freq(frames)
-        # sg = dsp_utils.blur(sg,c.blur_size)
-        _, amps = self.get_harmonics(fund_freqs, sg)
-        # amps = dsp_utils.norm_harmonics(sg, amps)
+        spectrogram = dsp.make_spectrogram(
+            frames, seg_length=self._config.seg_length, step_count=self._config.spectrums_per_sec, keep_phase=False)
+
+        fund_freqs = dsp.get_fund_freq(frames, self._config.framerate, self._config.spectrums_per_sec,
+                                       min_freq=self._config.min_fund_freq, max_freq=self._config.max_fund_freq)
+
+        _, amps = dsp.get_harmonics(
+            fund_freqs, self._config.freq_res, self._config.harmonics_count, spectrogram=spectrogram)
+
         return amps

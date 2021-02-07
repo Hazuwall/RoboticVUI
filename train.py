@@ -3,13 +3,14 @@ import core.training
 import infrastructure.locator as locator
 
 
-def main(stage=1):
+def main(stage: int = 0):
     config = locator.get_config()
+    acoustic_model = locator.get_acoustic_model()
     trainer = core.training.get_trainer(config, locator, stage)
 
     if config.verbose:
         trainer.model.summary()
-    start_step = trainer.model.checkpoint_step + 1
+    start_step = trainer.model.get_checkpoint_step(stage) + 1
     end_step = start_step + config.training_steps
 
     locator.get_filesystem_provider().store_core_modules()
@@ -24,6 +25,7 @@ def main(stage=1):
                 print(int(step))
 
     print("Optimization Finished!")
+    locator.get_reference_words_dictionary().update()
 
 
 if __name__ == "__main__":

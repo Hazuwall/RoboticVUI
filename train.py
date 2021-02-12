@@ -1,5 +1,5 @@
+import __init__
 import tensorflow as tf
-import core.training
 import infrastructure.locator as locator
 
 
@@ -12,7 +12,6 @@ def main(stage: int = 0):
     start_step = trainer.model.get_checkpoint_step(stage) + 1
     end_step = start_step + config.training_steps
 
-    locator.get_filesystem_provider().store_core_modules()
     print("Optimization Started!")
 
     for step in tf.range(start_step, end_step, dtype=tf.int64):
@@ -24,7 +23,6 @@ def main(stage: int = 0):
                 print(int(step))
 
     print("Optimization Finished!")
-    locator.get_reference_words_dictionary().update()
 
 
 if __name__ == "__main__":

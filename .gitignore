@@ -127,4 +127,6 @@ dmypy.json
 *.wav
 
 # Experiments
-/experiments
+/experiments/1000_*
+checkpoint*
+events.out.tfevents*

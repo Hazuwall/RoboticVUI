@@ -1,5 +1,6 @@
+import importlib
+from typing import Callable, List, Optional
 import config
-from typing import List, Optional
 
 
 def get_config():
@@ -7,8 +8,7 @@ def get_config():
 
 
 def get_frontend_processor():
-    import core.frontend as module
-    return module.FrontendProcessor(config)
+    return get_core_module("frontend").FrontendProcessor(config)
 
 
 def get_filesystem_provider():
@@ -44,8 +44,7 @@ acoustic_model = None
 def get_acoustic_model(stage_checkpoints: Optional[List[Optional[int]]] = None):
     global acoustic_model
     if acoustic_model is None:
-        import core.models as module
-        acoustic_model = module.AcousticModel(
+        acoustic_model = get_core_module("models").AcousticModel(
             config, get_weights_storage(), stage_checkpoints=stage_checkpoints)
     return acoustic_model
 
@@ -56,8 +55,7 @@ classifier = None
 def get_classifier():
     global classifier
     if classifier is None:
-        import core.models as module
-        classifier = module.Classifier(
+        classifier = get_core_module("models").Classifier(
             config, get_reference_words_dictionary())
     return classifier
 
@@ -78,17 +76,40 @@ def get_voice_user_interface(word_handler):
 
 
 def get_trainer_factory():
-    import core.training as module
-    return module.TrainerFactory(config, get_filesystem_provider(), get_acoustic_model(), get_dataset_pipeline_factory())
+    return get_core_module("training").TrainerFactory(config, get_filesystem_provider(), get_acoustic_model(), get_dataset_pipeline_factory())
+
+
+def get_core_module(module_name: str):
+    module_path = get_filesystem_provider().get_core_module_path(module_name)
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def get_core_config():
+    return get_core_module("config")
 
 
 def reset():
-    import importlib
-    importlib.reload(config)
-
     global acoustic_model
     global classifier
     global reference_words_dictionary
     acoustic_model = None
     classifier = None
     reference_words_dictionary = None
+
+    importlib.reload(config)
+    import __init__
+    importlib.reload(__init__)
+
+
+def create_overrided_scope(override_func: Callable):
+    class OverrideScope:
+        def __enter__(self):
+            reset()
+            override_func()
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            reset()
+    return OverrideScope()

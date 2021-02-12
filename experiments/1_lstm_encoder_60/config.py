@@ -1,8 +1,4 @@
 """ ============================ Common ===================================="""
-# Experiment
-experiment_name = "lstm_encoder_60"
-build = 1
-
 # Training
 training_batch_size = 72
 validation_size = 0

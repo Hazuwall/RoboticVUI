@@ -1,4 +1,4 @@
-#from ._setup import *
+import __init__
 from termcolor import colored
 import os
 import sys
@@ -6,37 +6,43 @@ import infrastructure.locator as locator
 
 
 def main():
-    status("Arranging...")
-    override_config()
-    locator.get_filesystem_provider().clear_experiment()
+    status("Starting...")
 
-    status("Running training...")
-    run_training()
+    status("Arranging test experiment...")
+    experiment_dir = locator.get_filesystem_provider().get_experiment_dir()
+    with locator.create_overrided_scope(override_config):
+        clone_experiment_core(experiment_dir)
 
-    status("Running inference...")
-    run_inference()
+        status("Running training...")
+        run_training()
+
+        status("Running inference...")
+        run_inference()
 
     status("Reloading...")
-    locator.reset()
-    override_config()
-
-    status("Continuing training...")
-    run_training()
+    with locator.create_overrided_scope(override_config):
+        status("Continuing training...")
+        run_training()
 
     status("All right!")
 
 
-def status(text):
+def status(text: str):
     print(colored("[Healthcheck]: " + text, 'green'))
 
 
 def override_config():
     config = locator.get_config()
-    config.experiment_name = "healthcheck"
-    config.build = 0
+    config.build = 1000
     config.training_steps = 2
     config.display_interval = 1
     config.checkpoint_interval = 2
+
+
+def clone_experiment_core(source_dir: str):
+    filesystem = locator.get_filesystem_provider()
+    filesystem.clear_experiment()
+    filesystem.clone_core_modules(source_dir)
 
 
 def run_training():

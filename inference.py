@@ -1,3 +1,4 @@
+import __init__
 from typing import Optional
 import infrastructure.locator as locator
 

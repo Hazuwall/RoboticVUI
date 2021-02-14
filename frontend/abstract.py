@@ -7,5 +7,5 @@ class FrontendProcessorBase(ABC):
         self._config = config
 
     @abstractmethod
-    def process(self, frames: np.ndarray):
+    def process(self, frames: np.ndarray) -> np.ndarray:
         pass

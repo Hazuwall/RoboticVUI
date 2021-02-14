@@ -35,7 +35,7 @@ def get_reference_words_dictionary():
 
 def get_dataset_pipeline_factory():
     import dataset.pipeline as module
-    return module.DatasetPipelineFactory(config, get_filesystem_provider())
+    return module.DatasetPipelineFactory(config, get_filesystem_provider(), get_frontend_processor())
 
 
 acoustic_model = None

@@ -1,13 +1,23 @@
 import random
 import numpy as np
 import h5py
+import math
 from typing import Callable, Optional
 from infrastructure.filesystem import FilesystemProvider
-import dataset.augmentation as aug
+import dataset.augmentation as augmentation
+from frontend.abstract import FrontendProcessorBase
 
 RANDOM_FETCH_MODE = "RANDOM"
 ROW_FETCH_MODE = "ROW"
 COUPLED_FETCH_MODE = "COUPLED"
+
+
+def convert_group_indices_to_item_indices(group_indices: list, group_size: int) -> list:
+    indices = []
+    for i in group_indices:
+        for j in range(group_size):
+            indices.append(i*group_size+j)
+    return indices
 
 
 class HdfStorage:
@@ -53,12 +63,11 @@ class HdfStorage:
                 indices = range(start, start+size)
             else:
                 if mode == COUPLED_FETCH_MODE:
-                    indices0 = sorted(random.sample(
-                        range(start, len(dset)//4), size//4))
-                    indices = []
-                    for i in indices0:
-                        for j in range(4):
-                            indices.append(i*4+j)
+                    group_size = 4
+                    group_indices = sorted(random.sample(
+                        range(math.ceil(start/group_size), len(dset)//group_size), size//group_size))
+                    indices = convert_group_indices_to_item_indices(
+                        group_indices, group_size)
                     X = dset[indices]
                 else:
                     indices = sorted(random.sample(
@@ -69,9 +78,9 @@ class HdfStorage:
             else:
                 return X
 
-    def fetch_subset_from_indices(self, label, indices):
+    def fetch_subset_from_indices(self, label: str, indices):
         with h5py.File(self.path, 'r') as f:
-            return f[self.group_label + label][indices]
+            return f[self.group_label + label][sorted(indices)]
 
 
 class DatasetPipeline():
@@ -86,15 +95,18 @@ class DatasetPipeline():
 
 
 class DatasetPipelineBuilder():
-    def __init__(self, config, filesystem: FilesystemProvider):
-        self.config = config
-        self.filesystem = filesystem
+    def __init__(self, config, filesystem: FilesystemProvider, frontend: FrontendProcessorBase):
+        self._config = config
+        self._filesystem = filesystem
+        self._frontend = frontend
+
         self._last_pipe: Optional[Callable] = None
         self._is_finalized = False
 
-        self._labeled = False
+        self._labeled: Optional[bool] = None
+        self._dataset_name: Optional[str] = None
         self._start_index = config.validation_size + config.test_size
-        self._size = config.training_batch_size
+        self._size = config.batch_size
         self._fetch_mode = RANDOM_FETCH_MODE
 
     def _create_pipe(self, handler: Callable, previous_pipe: Callable):
@@ -109,7 +121,8 @@ class DatasetPipelineBuilder():
 
     def from_labeled_storage(self, dataset_name: Optional[str] = None, labels: Optional[list] = None):
         self._labeled = True
-        storage_path = self.filesystem.get_dataset_path('h', dataset_name)
+        self._dataset_name = dataset_name
+        storage_path = self._filesystem.get_dataset_path('h', dataset_name)
         storage = HdfStorage(storage_path, 'harmonics')
         if labels is None:
             labels = storage.get_dataset_list()
@@ -128,7 +141,7 @@ class DatasetPipelineBuilder():
             group_size = size//group_count
             size = group_count*group_size
 
-            shape = self.config.frontend_shape
+            shape = self._config.frontend_shape
 
             x = np.zeros([size, shape[0], shape[1]])
             y = np.zeros([size])
@@ -154,7 +167,8 @@ class DatasetPipelineBuilder():
 
     def from_unlabeled_storage(self, dataset_name: Optional[str] = None):
         self._labeled = False
-        storage_path = self.filesystem.get_dataset_path('h', dataset_name)
+        self._dataset_name = dataset_name
+        storage_path = self._filesystem.get_dataset_path('h', dataset_name)
         storage = HdfStorage(storage_path, 'harmonics')
 
         def storage_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
@@ -167,19 +181,19 @@ class DatasetPipelineBuilder():
 
     def shuffle(self):
         def shuffle_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            shape = self.config.frontend_shape
+            shape = self._config.frontend_shape
 
-            x, y = handler(start_index, size, fetch_mode)
-            if fetch_mode == COUPLED_FETCH_MODE:
-                x = np.reshape(x, (-1, 4, shape[0], shape[1]))
+            x, y = handler(size, start_index, fetch_mode)
 
-            indices = np.arange(x.shape[0])
-            np.random.shuffle(indices)
+            group_size = 4
+            group_indices = np.arange(x.shape[0]//group_size)
+            np.random.shuffle(group_indices)
+            indices = convert_group_indices_to_item_indices(
+                group_indices, group_size)
+
             x = x[indices]
             y = y[indices]
 
-            if fetch_mode == COUPLED_FETCH_MODE:
-                x = np.reshape(x, (-1, shape[0], shape[1]))
             return x, y
 
         self.attach_handler(shuffle_handler)
@@ -187,7 +201,7 @@ class DatasetPipelineBuilder():
 
     def cache(self, cache_size: Optional[int] = None):
         if cache_size is None:
-            cache_size = self.config.cache_size
+            cache_size = self._config.cache_size
         x_cache = None
         y_cache = None
         cache_index = 0
@@ -197,7 +211,7 @@ class DatasetPipelineBuilder():
 
             batch_end_index = cache_index + size
             if (x_cache is None) or (batch_end_index >= x_cache.shape[0]):
-                x_cache, y_cache = handler(start_index, size, fetch_mode)
+                x_cache, y_cache = handler(cache_size, start_index, fetch_mode)
                 batch_end_index = size
 
             x = x_cache[cache_index:batch_end_index]
@@ -209,18 +223,34 @@ class DatasetPipelineBuilder():
         return self
 
     def augment(self):
-        if self._labeled:
+        if (self._labeled is None) or (self._labeled is None):
             raise NotImplementedError()
 
-        """data = self.storages[0].fetch_subset_from_indices("", indices)
-            data, aug_indices = aug.process(
-                data, self.config.framerate, self.config.aug_rate)
-            data = sp.complete_preprocess(data)
-            if self.__embeddings_return:
-                data = sp.encode(data)
-            self.__cache[aug_indices] = data"""
+        storage_path = self._filesystem.get_dataset_path(
+            'r', self._dataset_name)
+        storage = HdfStorage(storage_path, 'raw')
 
-        # TODO
+        def augment_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
+            x, y = handler(size, start_index, fetch_mode)
+
+            aug_size = int(self._config.aug_rate*len(x))
+
+            y_indices = range(len(y))
+            y_aug_indices = random.sample(y_indices, aug_size)
+            y_aug = y[y_aug_indices]
+
+            x_aug = storage.fetch_subset_from_indices("", y_aug)
+            x_aug = augmentation.apply_some_filters(
+                x_aug, self._config.framerate)
+
+            j = 0
+            for i in y_aug_indices:
+                x[i] = self._frontend.process(x_aug[j])
+                j += 1
+
+            return x, y
+
+        self.attach_handler(augment_handler)
         return self
 
     def merge(self, pipeline1: DatasetPipeline, pipeline2: DatasetPipeline):
@@ -252,9 +282,10 @@ class DatasetPipelineBuilder():
 
 
 class DatasetPipelineFactory():
-    def __init__(self, config, filesystem: FilesystemProvider) -> None:
+    def __init__(self, config, filesystem: FilesystemProvider, frontend: FrontendProcessorBase) -> None:
         self._config = config
         self._filesystem = filesystem
+        self._frontend = frontend
 
     def get_builder(self) -> DatasetPipelineBuilder:
-        return DatasetPipelineBuilder(self._config, self._filesystem)
+        return DatasetPipelineBuilder(self._config, self._filesystem, self._frontend)

@@ -22,10 +22,10 @@ class Trainer(TrainerBase):
 
         # Classes initialization
         line1 = pipeline_factory.get_builder().from_labeled_storage(
-            "s_en_SpeechCommands").with_size(config.training_batch_size//3).with_fetch_mode(COUPLED_FETCH_MODE).build()
+            "s_en_SpeechCommands").with_size(config.batch_size//3).with_fetch_mode(COUPLED_FETCH_MODE).cache().build()
 
         line2 = pipeline_factory.get_builder().from_unlabeled_storage(
-            "t_mx_Mix").with_fetch_mode(COUPLED_FETCH_MODE).shuffle().cache().augment().build()
+            "t_mx_Mix").with_fetch_mode(COUPLED_FETCH_MODE).shuffle().augment().cache().build()
 
         self._dataset = pipeline_factory.get_builder().merge(line1, line2).build()
 
@@ -78,7 +78,7 @@ class Trainer(TrainerBase):
         return cost, [pos_similarity, neg_similarity, pos_distrib, neg_distrib]
 
     def evaluate(self, codes):
-        codes = codes[:self._config.training_batch_size]
+        codes = codes[:self._config.batch_size]
         codes = tf.reshape(codes, (-1, 2, self._config.embedding_size))
         anchor, positive = tf.unstack(codes, axis=1)
         anchor = tf.expand_dims(anchor, axis=1)
@@ -89,6 +89,6 @@ class Trainer(TrainerBase):
         return 1 - tf.reduce_mean(tf.cast(incorrect_prediction, tf.float32))
 
     def run_step(self, step: tf.Tensor):
-        x = self._dataset.get_batch()
+        x, _ = self._dataset.get_batch()
         self.train_step(x, step)
         self._summary_writer.flush()

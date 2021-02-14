@@ -1,38 +1,41 @@
 import random
-from typing import Optional
+from typing import Optional, Sequence
 import numpy as np
 import librosa
 
 
-def shift(x, max_n: int, axis: Optional[int] = None):
+def shift(frames: np.ndarray, max_n: int, axis: Optional[int] = None) -> np.ndarray:
     n1 = random.randint(1, max_n)
     n2 = random.randint(-max_n, -1)
-    return np.concatenate((x, np.roll(x, n1, axis=axis), np.roll(x, n2, axis=axis)))
+    return np.concatenate((frames, np.roll(frames, n1, axis=axis), np.roll(frames, n2, axis=axis)))
 
 
-def change_pitch(frames: np.ndarray, framerate: int):
+def change_pitch(frames: np.ndarray, framerate: int) -> np.ndarray:
+    pitch_change = 3*np.random.uniform() - 2
+    frames_out = np.zeros(frames.shape)
+
     for i in range(len(frames)):
-        pitch_change = 3*np.random.uniform() - 2
-        frames[i] = librosa.effects.pitch_shift(
+        frames_out[i] = librosa.effects.pitch_shift(
             frames[i], framerate, n_steps=pitch_change)
+    return frames_out
 
 
-def add_noise(frames: np.ndarray):
+def add_noise(frames: np.ndarray) -> np.ndarray:
     noise_amp = 0.01 * \
         np.random.uniform(
             size=(frames.shape[0], 1))*np.amax(frames, axis=1, keepdims=True)
-    frames += noise_amp * np.random.normal(size=frames.shape)
+    return frames + noise_amp * np.random.normal(size=frames.shape)
 
 
-def process(frames: np.ndarray, framerate: int, aug_rate: float):
-    indices = random.sample(range(0, len(frames)), int(aug_rate*len(frames)))
+def sample_with_rate(x: Sequence, rate: float) -> list:
+    return random.sample(x, int(rate*len(x)))
 
-    X = frames[indices]
-    add_noise(X)
 
-    pitch_group_size = len(X)//2
-    pitch_indices = random.sample(range(0, len(X)), pitch_group_size)
-    temp = X[pitch_indices]
-    change_pitch(temp, framerate)
-    X[pitch_indices] = temp
-    return X, indices
+def apply_some_filters(frames: np.ndarray, framerate: int) -> np.ndarray:
+    frames = add_noise(frames)
+
+    indices = range(len(frames))
+    pitch_indices = sample_with_rate(indices, 0.5)
+    frames[pitch_indices] = change_pitch(frames[pitch_indices], framerate)
+
+    return frames

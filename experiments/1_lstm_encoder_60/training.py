@@ -1,6 +1,6 @@
 import tensorflow as tf
 import model.tf_utils as tf_utils
-from dataset.pipeline import DatasetPipelineFactory
+from dataset.pipeline import DatasetPipelineFactory, COUPLED_FETCH_MODE
 from infrastructure.filesystem import FilesystemProvider
 from model.abstract import AcousticModelBase
 from training.abstract import TrainerBase, TrainerFactoryBase
@@ -16,16 +16,18 @@ class TrainerFactory(TrainerFactoryBase):
 
 
 class Trainer(TrainerBase):
-    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, dataset_pipeline_factory: DatasetPipelineFactory) -> None:
+    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, pipeline_factory: DatasetPipelineFactory) -> None:
         super(Trainer, self).__init__(
-            config, filesystem, acoustic_model, dataset_pipeline_factory)
+            config, filesystem, acoustic_model, pipeline_factory)
 
         # Classes initialization
-        line1 = dataset_pipeline_factory.get_builder().from_labeled_storage(
-            "s_en_SpeechCommands").build()
-        line2 = dataset_pipeline_factory.get_builder().from_unlabeled_storage(
-            "t_mx_Mix").cache(1000).augment().with_size(config.training_batch_size//3).build()
-        self._dataset = dataset_pipeline_factory.get_builder().merge(line1, line2).build()
+        line1 = pipeline_factory.get_builder().from_labeled_storage(
+            "s_en_SpeechCommands").with_size(config.training_batch_size//3).with_fetch_mode(COUPLED_FETCH_MODE).build()
+
+        line2 = pipeline_factory.get_builder().from_unlabeled_storage(
+            "t_mx_Mix").with_fetch_mode(COUPLED_FETCH_MODE).shuffle().cache().augment().build()
+
+        self._dataset = pipeline_factory.get_builder().merge(line1, line2).build()
 
         logs_path = filesystem.get_model_dir(config.acoustic_model_name).logs
         self._summary_writer = tf.summary.create_file_writer(logs_path)

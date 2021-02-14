@@ -76,13 +76,13 @@ class HdfStorage:
 
 class DatasetPipeline():
     def __init__(self, get_subset_handler: Callable, start_index: int, size: int, fetch_mode: str):
-        self.__get_subset = get_subset_handler
-        self.__start_index = start_index
-        self.__size = size
-        self.__fetch_mode = fetch_mode
+        self._get_subset = get_subset_handler
+        self._start_index = start_index
+        self._size = size
+        self._fetch_mode = fetch_mode
 
     def get_batch(self):
-        return self.__get_subset(self.__size, self.__start_index, self.__fetch_mode)
+        return self._get_subset(self._size, self._start_index, self._fetch_mode)
 
 
 class DatasetPipelineBuilder():
@@ -128,9 +128,9 @@ class DatasetPipelineBuilder():
             group_size = size//group_count
             size = group_count*group_size
 
-            out_shape = self.config.frontend_shape
+            shape = self.config.frontend_shape
 
-            x = np.zeros([size, out_shape[0], out_shape[1]])
+            x = np.zeros([size, shape[0], shape[1]])
             y = np.zeros([size])
 
             index = 0
@@ -141,67 +141,71 @@ class DatasetPipelineBuilder():
                 index += group_size
 
             if do_split_into_couples:
-                x = np.reshape(x, [2, -1, 2, out_shape[0], out_shape[1]])
+                x = np.reshape(x, [2, -1, 2, shape[0], shape[1]])
                 x = np.transpose(x, [1, 0, 2, 3, 4])
-                x = np.reshape(x, [-1, out_shape[0], out_shape[1]])
-                y = np.reshape(y, [2, -1, 2, group_count])
-                y = np.transpose(y, [1, 0, 2, 3])
-                y = np.reshape(y, [-1, group_count])
+                x = np.reshape(x, [-1, shape[0], shape[1]])
+                y = np.reshape(y, [2, -1, 2])
+                y = np.transpose(y, [1, 0, 2])
+                y = np.reshape(y, [-1])
             return x, y
 
         self.attach_handler(storage_handler)
         return self
 
     def from_unlabeled_storage(self, dataset_name: Optional[str] = None):
+        self._labeled = False
         storage_path = self.filesystem.get_dataset_path('h', dataset_name)
         storage = HdfStorage(storage_path, 'harmonics')
 
         def storage_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            out_shape = self.config.preprocess_shape
-
             x, indices = storage.fetch_subset(
                 '', start_index, size, mode=fetch_mode, return_indices=True)
-
-            if fetch_mode == COUPLED_FETCH_MODE:
-                x = np.reshape(x, (-1, 4, out_shape[0], out_shape[1]))
-                np.random.shuffle(x)
-                x = np.reshape(x, (-1, out_shape[0], out_shape[1]))
-
             return x, np.asarray(indices)
 
         self.attach_handler(storage_handler)
         return self
 
-    def cache(self, size: int):
-        if self._labeled:
-            raise NotImplementedError()
-        # TODO
+    def shuffle(self):
+        def shuffle_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
+            shape = self.config.frontend_shape
 
-        """
-        if self.__embeddings_return:
-            out_shape = self.config.embedding_shape
-            storage = self.storages[2]
-        else:
-            out_shape = self.config.preprocess_shape
-            storage = self.storages[1]
+            x, y = handler(start_index, size, fetch_mode)
+            if fetch_mode == COUPLED_FETCH_MODE:
+                x = np.reshape(x, (-1, 4, shape[0], shape[1]))
 
-        self.__cache_index = 0
-        self.__cache, indices = storage.fetch_subset(
-            '', storage_start_index, self.config.dataset_cache, mode=fetch_mode, return_indices=True)
+            indices = np.arange(x.shape[0])
+            np.random.shuffle(indices)
+            x = x[indices]
+            y = y[indices]
 
-        if fetch_mode == "COUPLED":
-            self.__cache = np.reshape(
-                self.__cache, (-1, 4, out_shape[0], out_shape[1]))
-            np.random.shuffle(self.__cache)
-            self.__cache = np.reshape(
-                self.__cache, (-1, out_shape[0], out_shape[1]))
-        end_index = self.__cache_index + size
-            if (self.__cache is None) or (end_index >= self.__cache.shape[0]):
-                self.fill_batch_cache(storage_start_index, fetch_mode)
-                end_index = self.__cache_index + size
-            x = self.__cache[self.__cache_index:end_index]
-            self.__cache_index = end_index"""
+            if fetch_mode == COUPLED_FETCH_MODE:
+                x = np.reshape(x, (-1, shape[0], shape[1]))
+            return x, y
 
+        self.attach_handler(shuffle_handler)
+        return self
+
+    def cache(self, cache_size: Optional[int] = None):
+        if cache_size is None:
+            cache_size = self.config.cache_size
+        x_cache = None
+        y_cache = None
+        cache_index = 0
+
+        def cache_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
+            nonlocal cache_size, cache_index, x_cache, y_cache
+
+            batch_end_index = cache_index + size
+            if (x_cache is None) or (batch_end_index >= x_cache.shape[0]):
+                x_cache, y_cache = handler(start_index, size, fetch_mode)
+                batch_end_index = size
+
+            x = x_cache[cache_index:batch_end_index]
+            y = y_cache[cache_index:batch_end_index]
+            cache_index = batch_end_index
+            return x, y
+
+        self.attach_handler(cache_handler)
         return self
 
     def augment(self):
@@ -222,7 +226,7 @@ class DatasetPipelineBuilder():
     def merge(self, pipeline1: DatasetPipeline, pipeline2: DatasetPipeline):
         def merge_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
             x1, y1 = pipeline1.get_batch()
-            x2, y2 = pipeline1.get_batch()
+            x2, y2 = pipeline2.get_batch()
             x = np.concatenate([x1, x2], axis=0)
             y = np.concatenate([y1, y2], axis=0)
             return x, y

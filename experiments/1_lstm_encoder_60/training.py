@@ -1,8 +1,8 @@
 import tensorflow as tf
-import models.tf_utils as tf_utils
+import model.tf_utils as tf_utils
 from dataset.pipeline import DatasetPipelineFactory
 from infrastructure.filesystem import FilesystemProvider
-from models.abstract import AcousticModelBase
+from model.abstract import AcousticModelBase
 from training.abstract import TrainerBase, TrainerFactoryBase
 
 

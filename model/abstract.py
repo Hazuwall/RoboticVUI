@@ -2,7 +2,7 @@ from typing import List, Optional
 import tensorflow as tf
 from abc import ABC, abstractmethod
 import numpy as np
-from models.data_access import ReferenceWordsDictionary, WeightsStorage
+from model.data_access import ReferenceWordsDictionary, WeightsStorage
 
 
 class AcousticModelBase(ABC):

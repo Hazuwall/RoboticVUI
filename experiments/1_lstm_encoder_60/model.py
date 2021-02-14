@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
 from typing import List, Optional
-from models.data_access import WeightsStorage, ReferenceWordsDictionary
-import models.tf_utils
-from models.abstract import AcousticModelBase, ClassifierBase
+from model.data_access import WeightsStorage, ReferenceWordsDictionary
+import model.tf_utils
+from model.abstract import AcousticModelBase, ClassifierBase
 
 
 class AcousticModel(AcousticModelBase):
@@ -84,6 +84,6 @@ class Classifier(ClassifierBase):
 
         embeddings = tf.reshape(
             embeddings, [-1, 1, self._config.embedding_size])
-        similarity = models.tf_utils.cos_similarity(
+        similarity = model.tf_utils.cos_similarity(
             embeddings, ref_embeddings, axis=2)
         return similarity

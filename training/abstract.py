@@ -2,7 +2,7 @@ import tensorflow as tf
 from abc import ABC, abstractmethod
 from dataset.pipeline import DatasetPipelineFactory
 from infrastructure.filesystem import FilesystemProvider
-from models.abstract import AcousticModelBase
+from model.abstract import AcousticModelBase
 
 
 class TrainerBase(ABC):

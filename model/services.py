@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Optional
 from frontend.abstract import FrontendProcessorBase
-from models.abstract import AcousticModelBase
+from model.abstract import AcousticModelBase
 
 
 class FramesToEmbeddingService:

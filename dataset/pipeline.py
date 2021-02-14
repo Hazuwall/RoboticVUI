@@ -89,23 +89,26 @@ class DatasetPipelineBuilder():
     def __init__(self, config, filesystem: FilesystemProvider):
         self.config = config
         self.filesystem = filesystem
-        self.__last_pipe: Optional[Callable] = None
+        self._last_pipe: Optional[Callable] = None
+        self._is_finalized = False
 
-        self.__labeled = False
-        self.__start_index = config.validation_size + config.test_size
-        self.__size = config.training_batch_size
-        self.__fetch_mode = RANDOM_FETCH_MODE
+        self._labeled = False
+        self._start_index = config.validation_size + config.test_size
+        self._size = config.training_batch_size
+        self._fetch_mode = RANDOM_FETCH_MODE
 
-    def __create_pipe(self, handler: Callable, previous_pipe: Callable):
+    def _create_pipe(self, handler: Callable, previous_pipe: Callable):
         def pipe(size: int, start_index: int, fetch_mode: str):
             return handler(size, start_index, fetch_mode, previous_pipe)
         return pipe
 
     def attach_handler(self, handler: Callable):
-        self.__last_pipe = self.__create_pipe(handler, self.__last_pipe)
+        if self._is_finalized:
+            raise ValueError("Pipeline has been finalized!")
+        self._last_pipe = self._create_pipe(handler, self._last_pipe)
 
     def from_labeled_storage(self, dataset_name: Optional[str] = None, labels: Optional[list] = None):
-        self.__labeled = True
+        self._labeled = True
         storage_path = self.filesystem.get_dataset_path('h', dataset_name)
         storage = HdfStorage(storage_path, 'harmonics')
         if labels is None:
@@ -170,7 +173,7 @@ class DatasetPipelineBuilder():
         return self
 
     def cache(self, size: int):
-        if self.__labeled:
+        if self._labeled:
             raise NotImplementedError()
         # TODO
 
@@ -202,7 +205,7 @@ class DatasetPipelineBuilder():
         return self
 
     def augment(self):
-        if self.__labeled:
+        if self._labeled:
             raise NotImplementedError()
 
         """data = self.storages[0].fetch_subset_from_indices("", indices)
@@ -225,22 +228,23 @@ class DatasetPipelineBuilder():
             return x, y
 
         self.attach_handler(merge_handler)
+        self._is_finalized = True
         return self
 
     def with_size(self, size: int):
-        self.__size = size
+        self._size = size
         return self
 
     def with_start_index(self, start_index: int):
-        self.__start_index = start_index
+        self._start_index = start_index
         return self
 
     def with_fetch_mode(self, fetch_mode: str):
-        self.__fetch_mode = fetch_mode
+        self._fetch_mode = fetch_mode
         return self
 
     def build(self):
-        return DatasetPipeline(self.__last_pipe, self.__start_index, self.__size, self.__fetch_mode)
+        return DatasetPipeline(self._last_pipe, self._start_index, self._size, self._fetch_mode)
 
 
 class DatasetPipelineFactory():

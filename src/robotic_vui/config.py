@@ -1,8 +1,8 @@
 build = 1
 
 # Paths
-experiments_dir = "experiments\\"
-ref_words_dir = "resources\\ref_words\\"
+experiments_dir = "D:\\Projects\\RoboticVUI\\src\\robotic_vui\\experiments\\"
+ref_words_dir = "D:\\Projects\\RoboticVUI\\src\\robotic_vui\\resources\\ref_words\\"
 datasets_dir = "C:\\Datasets\\Audio\\"
 checkpoint_prefix = "checkpoint-"
 

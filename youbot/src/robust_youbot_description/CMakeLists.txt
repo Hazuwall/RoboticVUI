@@ -7,5 +7,5 @@ catkin_package(
   CATKIN_DEPENDS
 )
 
-install(DIRECTORY urdf
+install(DIRECTORY sdf
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

@@ -46,7 +46,7 @@ class VoiceUserInterface:
         pass
 
     def __convert_to_frames_array(self, data):
-        frames = np.fromstring(data, dtype=np.int16)[::2]
+        frames = np.fromstring(data, dtype=np.int16)[::self.config.channels]
         high, low = abs(max(frames)), abs(min(frames))
         return frames / max(high, low)
 
@@ -76,7 +76,7 @@ class VoiceUserInterface:
 
             return (in_data, self.__should_continue(start_time, duration))
 
-        stream = audio.open(format=pyaudio.paInt16, channels=2,
+        stream = audio.open(format=pyaudio.paInt16, channels=self.config.channels,
                             rate=self.config.framerate, input=True,
                             input_device_index=1,
                             frames_per_buffer=buffer_length,

@@ -11,7 +11,7 @@ def main():
 
         def handle_word(word, weight):
             pub.publish(word)
-            rospy.loginfo("{} [{}]".format(word, weight))
+            rospy.loginfo("{}, {:.2f}".format(word, weight))
 
         vui.run(handle_word)
 

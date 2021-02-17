@@ -7,6 +7,7 @@ datasets_dir = "C:\\Datasets\\Audio\\"
 checkpoint_prefix = "checkpoint-"
 
 # Recognition
+channels = 1
 min_word_weight = 0.75
 silence_word = "_silence"
 unknown_word = "_unknown"

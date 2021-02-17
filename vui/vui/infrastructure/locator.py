@@ -3,6 +3,20 @@ from typing import Callable, List, Optional
 import vui.config as config
 
 
+class ServiceCollection:
+    def singleton(self, factory: Callable):
+        def wrapped(*args, **kwargs):
+            key = factory.__name__
+            if key not in self.__dict__:
+                self.__dict__[key] = factory(*args, **kwargs)
+            return self.__dict__[key]
+        return wrapped
+
+
+services = ServiceCollection()
+
+
+@services.singleton
 def get_config():
     return config
 
@@ -21,16 +35,10 @@ def get_weights_storage():
     return module.WeightsStorage(get_filesystem_provider())
 
 
-reference_words_dictionary = None
-
-
+@services.singleton
 def get_reference_words_dictionary():
-    global reference_words_dictionary
-    if reference_words_dictionary is None:
-        import vui.model.data_access as module
-        reference_words_dictionary = module.ReferenceWordsDictionary(
-            config, get_filesystem_provider(), get_frames_to_embedding_service().encode)
-    return reference_words_dictionary
+    import vui.model.data_access as module
+    return module.ReferenceWordsDictionary(config, get_filesystem_provider(), get_frames_to_embedding_service().encode)
 
 
 def get_dataset_pipeline_factory():
@@ -38,26 +46,14 @@ def get_dataset_pipeline_factory():
     return module.DatasetPipelineFactory(config, get_filesystem_provider(), get_frontend_processor())
 
 
-acoustic_model = None
-
-
+@services.singleton
 def get_acoustic_model(stage_checkpoints: Optional[List[Optional[int]]] = None):
-    global acoustic_model
-    if acoustic_model is None:
-        acoustic_model = get_core_module("model").AcousticModel(
-            config, get_weights_storage(), stage_checkpoints=stage_checkpoints)
-    return acoustic_model
+    return get_core_module("model").AcousticModel(config, get_weights_storage(), stage_checkpoints=stage_checkpoints)
 
 
-classifier = None
-
-
+@services.singleton
 def get_classifier():
-    global classifier
-    if classifier is None:
-        classifier = get_core_module("model").Classifier(
-            config, get_reference_words_dictionary())
-    return classifier
+    return get_core_module("model").Classifier(config, get_reference_words_dictionary())
 
 
 def get_frames_to_embedding_service():
@@ -91,14 +87,17 @@ def get_core_config():
     return get_core_module("config")
 
 
-def create_overrided_scope(override_func: Callable):
-    import vui
-
+def create_overriden_scope(override_func: Callable):
     class OverrideScope:
         def __enter__(self):
-            vui.reset()
+            self.temp_config_dict = config.__dict__.copy()
+            self.temp_services_dict = services.__dict__.copy()
             override_func()
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            vui.reset()
+            config.__dict__.clear()
+            config.__dict__.update(self.temp_config_dict)
+            services.__dict__.clear()
+            services.__dict__.update(self.temp_services_dict)
+
     return OverrideScope()

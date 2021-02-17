@@ -9,7 +9,8 @@ def main():
 
     status("Arranging test experiment...")
     experiment_dir = locator.get_filesystem_provider().get_experiment_dir()
-    with locator.create_overrided_scope(override_config):
+    with locator.create_isolated_scope():
+        override_config()
         clone_experiment_core(experiment_dir)
 
         status("Running training...")
@@ -19,7 +20,9 @@ def main():
         run_inference()
 
     status("Reloading...")
-    with locator.create_overrided_scope(override_config):
+    with locator.create_isolated_scope():
+        override_config()
+
         status("Continuing training...")
         run_training()
 

@@ -12,6 +12,7 @@ class WordRecognizer():
         self.config = config
         self.frames_to_embedding_service = frames_to_embedding_service
         self.classifier = classifier
+        self.classifier.train()
 
     def recognize(self, frames):
         word = self.config.silence_word

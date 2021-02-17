@@ -6,7 +6,7 @@
         {
             "label": "Health Check",
             "type": "shell",
-            "command": "python bin/healthcheck.py",
+            "command": "python scripts/healthcheck.py",
             "group": {
                 "kind": "test",
                 "isDefault": true

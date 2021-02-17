@@ -6,7 +6,7 @@ import vui
 
 def main():
     try:
-        rospy.init_node('vui_node', anonymous=True)
+        rospy.init_node('speech_to_command_node', anonymous=True)
         pub = rospy.Publisher('/text_command', String, queue_size=10)
 
         def handle_word(word, weight):

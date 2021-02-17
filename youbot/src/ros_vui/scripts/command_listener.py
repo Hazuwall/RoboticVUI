@@ -32,7 +32,7 @@ def try_get_velocity(command: str) -> Tuple[bool, Twist]:
 
 def main():
     try:
-        rospy.init_node('command_transform_node', anonymous=True)
+        rospy.init_node('command_listener_node', anonymous=True)
         velocity_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
         def command_callback(command: String):

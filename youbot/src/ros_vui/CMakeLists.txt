@@ -16,7 +16,7 @@ catkin_package(
 )
 
 catkin_install_python(PROGRAMS
-  scripts/vui_node.py
-  scripts/command_transform_node.py
+  scripts/speech_to_command.py
+  scripts/command_listener.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

@@ -1,0 +1,9 @@
+<launch>
+
+    <node pkg="ros_vui" type="speech_to_command" name="speech_to_command" output="screen">
+    </node>
+
+    <node pkg="ros_vui" type="command_listener" name="command_listener">
+    </node>
+
+</launch>

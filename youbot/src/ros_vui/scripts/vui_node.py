@@ -6,8 +6,8 @@ import vui
 
 def main():
     try:
-        pub = rospy.Publisher('text_command', String, queue_size=10)
         rospy.init_node('vui_node', anonymous=True)
+        pub = rospy.Publisher('/text_command', String, queue_size=10)
 
         def handle_word(word, weight):
             pub.publish(word)

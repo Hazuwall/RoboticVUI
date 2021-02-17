@@ -4,6 +4,7 @@ project(ros_vui)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  geometry_msgs
 )
 
 include_directories(
@@ -14,6 +15,8 @@ catkin_package(
   CATKIN_DEPENDS
 )
 
-catkin_install_python(PROGRAMS scripts/vui_node.py
+catkin_install_python(PROGRAMS
+  scripts/vui_node.py
+  scripts/command_transform_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

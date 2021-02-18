@@ -1,21 +1,28 @@
 ## VUI
 
 ### Сборка
+
 `python setup.py sdist`
 
 ### Установка
-`pip install -e vui`
 
-Для Python >=3.7:
+1. `pip install -e vui`
 
-`pip install pipwin`
+2. Установить [graphviz](https://graphviz.gitlab.io/download/)
 
-`pipwin install pyaudio`
+   Добавить путь к папке bin в PATH
 
-Для Python <3.7:
+3. Установить `pyaudio`
 
-`pip install pyaudio`
+   - Для Python >=3.7:
 
+     `pip install pipwin`
+
+     `pipwin install pyaudio`
+
+   - Для Python <3.7:
+
+     `pip install pyaudio`
 
 ### Ошибки:
 

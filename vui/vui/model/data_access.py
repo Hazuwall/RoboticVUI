@@ -3,6 +3,7 @@ from typing import Callable, Optional
 import numpy as np
 import vui.frontend.dsp as dsp
 from vui.infrastructure.filesystem import FilesystemProvider
+from vui.model.metrics import StructureInfo
 
 
 class WeightsStorage:
@@ -56,3 +57,28 @@ class ReferenceWordsDictionary():
         words, embeddings = self.get_ref_words()
         self.words = words
         self.embeddings = embeddings
+
+
+class ModelInfoSaver:
+    def __init__(self, filesystem: FilesystemProvider) -> None:
+        self._filesystem = filesystem
+
+    def save_structure_info(self, info: StructureInfo) -> None:
+        dir_path = self._filesystem.get_experiment_dir()
+        structure_filename = "structure.svg"
+        structure_file = open(dir_path + structure_filename, "wb")
+        structure_file.write(info.svg)
+        structure_file.close()
+
+        readme_filename = "README.md"
+        readme_lines = [
+            "| Variables | Weights' size, KB | Computations, MFLOPS |\n",
+            "| --- | --- | --- |\n",
+            "| {} | {:.2f} | {:.2f} |\n\n".format(
+                info.variable_count, info.weights_size / 1024.0, info.flops / 1000000.0),
+            "## Structure\n\n",
+            "![Structure]({})".format(structure_filename)
+        ]
+        readme_file = open(dir_path + readme_filename, "w")
+        readme_file.writelines(readme_lines)
+        readme_file.close()

@@ -65,10 +65,16 @@ def get_weights_storage():
     return module.WeightsStorage(get_filesystem_provider())
 
 
-@services.singleton
+@services.transient
 def get_reference_words_dictionary():
     import vui.model.data_access as module
     return module.ReferenceWordsDictionary(config, get_filesystem_provider(), get_frames_to_embedding_service().encode)
+
+
+@services.transient
+def get_model_info_saver():
+    import vui.model.data_access as module
+    return module.ModelInfoSaver(get_filesystem_provider())
 
 
 @services.transient

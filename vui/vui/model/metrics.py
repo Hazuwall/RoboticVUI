@@ -37,11 +37,11 @@ class StructureInfo:
         self._flops = value
 
     @property
-    def svg(self):
+    def svg(self) -> bytearray:
         return self._svg
 
     @svg.setter
-    def svg(self, value):
+    def svg(self, value: bytearray):
         self._svg = value
 
 

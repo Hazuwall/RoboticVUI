@@ -13,7 +13,7 @@ silence_word = "_silence"
 unknown_word = "_unknown"
 
 # Training
-training_steps = 100
+training_steps = 60000
 display_interval = 100
-checkpoint_interval = 100
+checkpoint_interval = 1000
 verbose = False

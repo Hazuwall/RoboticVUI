@@ -22,7 +22,7 @@
         {
             "label": "Train",
             "type": "shell",
-            "command": "python train.py",
+            "command": "python scripts/train.py",
             "presentation": {
                 "reveal": "always",
                 "focus": true,

@@ -13,7 +13,8 @@ def get_framerate(filepath: str) -> int:
 
 def read(filepath: str) -> np.ndarray:
     """Get frames of the given audiofile first channel. MP3 is not supported."""
-    return sf.read(filepath, dtype='float32', always_2d=True)[0][:, 0]
+    frames = sf.read(filepath, dtype='float32', always_2d=True)[0][:, 0]
+    return np.nan_to_num(frames)
 
 
 def write(filepath: str, frames: np.ndarray, framerate: int):
@@ -169,3 +170,38 @@ def detect_words(sg: np.ndarray) -> np.ndarray:
     dev = scipy.signal.convolve(dev, gaussian, mode="valid")[::4]
     indices = np.where(dev > 40)[0]*4
     return indices
+
+
+def remove_silence(frames: np.ndarray, threshold: float) -> np.ndarray:
+    gaussian = scipy.signal.gaussian(16, 6)
+    gaussian = gaussian / np.sum(gaussian)
+    avg = scipy.signal.convolve(abs(frames), gaussian, mode="valid")
+
+    abs_threshold = np.max(avg)*threshold
+
+    silence_indices = np.where(avg < abs_threshold)[0]
+    return np.delete(frames, silence_indices)
+
+
+def remove_repeat(frames: np.ndarray, framerate: int, fund_freq: int, allowed_repeat_periods: int, max_correlation: float):
+    def autocorr(frames: np.ndarray, length: int) -> np.ndarray:
+        corr = np.zeros(len(frames))
+        for i in range(0, len(frames), length):
+            for j in range(0, length):
+                if i+j+length < len(frames):
+                    corr[i+j] = np.corrcoef(frames[i:i+length],
+                                            frames[i+j:i+j+length])[0][1]
+        return corr
+
+    allowed_repeat_periods_time = (1 / fund_freq) * allowed_repeat_periods
+    step = math.ceil(framerate * allowed_repeat_periods_time * 2)
+
+    correlation = autocorr(frames, step)
+    match_indexes = np.array(np.where(correlation > max_correlation)[0])
+    match_indexes = np.delete(match_indexes, np.where(
+        (match_indexes % step) < 3)[0], 0)
+
+    indices_to_remove = []
+    for i in match_indexes:
+        indices_to_remove.append(range(i, i+step))
+    return np.delete(frames, indices_to_remove)

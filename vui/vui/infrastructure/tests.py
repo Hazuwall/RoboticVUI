@@ -8,9 +8,21 @@ config = locator.get_config()
 filesystem = locator.get_filesystem_provider()
 
 
-def input() -> np.ndarray:
+def input_local():
     frames = dsp.read("input.wav")
+    config.framerate = dsp.get_framerate("input.wav")
+    config.seg_length = dsp.get_best_segment_length(config.framerate)
+    config.freq_count = dsp.get_freq_count(config.seg_length)
+    config.freq_res = dsp.get_freq_resolution(
+        config.framerate, config.freq_count)
     return frames
+
+
+def input() -> np.ndarray:
+    dataset_path = filesystem.get_dataset_path(
+        "r", label="s_en_SpeechCommands")
+    storage = HdfStorage(dataset_path, "raw")
+    return np.reshape(storage.fetch_subset("tree", 0, 1), [-1])
 
 
 def input_bulk(n: int) -> np.ndarray:

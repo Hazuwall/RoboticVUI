@@ -2,7 +2,6 @@ from matplotlib import pyplot as plt
 import vui.frontend.dsp as dsp
 import numpy as np
 import vui.infrastructure.tests as tests
-import vui.infrastructure.locator as locator
 
 
 def main():

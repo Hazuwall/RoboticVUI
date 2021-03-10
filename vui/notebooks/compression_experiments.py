@@ -5,7 +5,22 @@ import vui.infrastructure.tests as tests
 
 
 def main():
-    remove_repeat_compression_test(0.98, 0.04)
+    get_avg_level_test()
+
+
+def get_avg_level_test():
+    frames = tests.input()
+    avg = dsp.get_avg_level(frames)
+
+    time = np.arange(len(frames)) / tests.config.framerate
+    line, = plt.plot(time, frames, linewidth=0.4)
+    line.set_label("Сигнал")
+    line, = plt.plot(time, avg, linewidth=0.4)
+    line.set_label("Усредненный модуль")
+    plt.xlabel("Время, с")
+    plt.ylabel("Амплитуда")
+    plt.legend()
+    plt.show()
 
 
 def remove_silence_test(n: int, threshold: float):

@@ -172,13 +172,16 @@ def detect_words(sg: np.ndarray) -> np.ndarray:
     return indices
 
 
-def remove_silence(frames: np.ndarray, threshold: float) -> np.ndarray:
+def get_avg_level(frames: np.ndarray):
     gaussian = scipy.signal.gaussian(16, 6)
     gaussian = gaussian / np.sum(gaussian)
     avg = scipy.signal.convolve(abs(frames), gaussian, mode="valid")
+    return np.pad(avg, [8, 7])
 
+
+def remove_silence(frames: np.ndarray, threshold: float) -> np.ndarray:
+    avg = get_avg_level(frames)
     abs_threshold = np.max(avg)*threshold
-
     silence_indices = np.where(avg < abs_threshold)[0]
     return np.delete(frames, silence_indices)
 

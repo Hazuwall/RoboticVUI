@@ -74,7 +74,7 @@ class Trainer(TrainerBase):
         neg_cost = tf.reduce_mean(tf.maximum(0.3, neg_distrib)**2)
         neg_similarity = tf.reduce_mean(neg_distrib)
 
-        cost = pos_cost + neg_cost
+        cost = tf.debugging.check_numerics(pos_cost + neg_cost, "Cost is NaN.")
         return cost, [pos_similarity, neg_similarity, pos_distrib, neg_distrib]
 
     def evaluate(self, codes):

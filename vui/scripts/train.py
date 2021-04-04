@@ -1,3 +1,4 @@
+from typing import Callable
 import tensorflow as tf
 import vui.infrastructure.locator as locator
 import vui.model.metrics as metrics
@@ -16,7 +17,7 @@ def main(stage: int = 0):
     print("Optimization Started!")
 
     for step in tf.range(start_step, end_step, dtype=tf.int64):
-        trainer.run_step(step)
+        retry_on_error(lambda: trainer.run_step(step), 5)
 
         if (step % config.checkpoint_interval) == 0:
             trainer.model.save(int(step))
@@ -24,6 +25,21 @@ def main(stage: int = 0):
                 print(int(step))
 
     print("Optimization Finished!")
+
+
+def retry_on_error(func: Callable, attempts: int):
+    counter = 0
+    while True:
+        try:
+            func()
+        except:
+            counter += 1
+            if counter >= attempts:
+                raise
+            else:
+                continue
+        else:
+            break
 
 
 if __name__ == "__main__":

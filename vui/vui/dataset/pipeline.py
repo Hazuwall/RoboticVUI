@@ -73,6 +73,7 @@ class HdfStorage:
                     indices = sorted(random.sample(
                         range(start, len(dset)), size))
                     X = dset[indices]
+            X = np.nan_to_num(X)
             if return_indices:
                 return X, indices
             else:
@@ -80,7 +81,7 @@ class HdfStorage:
 
     def fetch_subset_from_indices(self, label: str, indices):
         with h5py.File(self.path, 'r') as f:
-            return f[self.group_label + label][sorted(indices)]
+            return np.nan_to_num(f[self.group_label + label][sorted(indices)])
 
 
 class DatasetPipeline():

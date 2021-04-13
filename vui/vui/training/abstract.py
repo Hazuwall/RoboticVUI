@@ -44,7 +44,7 @@ class AcousticModelTrainer(TrainerBase):
     def run_step(self, step: tf.Tensor) -> None:
         with self._summary_writer.as_default(step):
             start_time = time.monotonic()
-            self.retry_on_error(lambda: self.run_step_core(step), 5)
+            self._retry_on_error(lambda: self.run_step_core(step), 5)
             step_time = time.monotonic() - start_time
 
             if step % self._config.display_interval == 0:

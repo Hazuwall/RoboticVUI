@@ -55,6 +55,8 @@ class AcousticModelTrainer(TrainerBase):
         while True:
             try:
                 func()
+            except KeyboardInterrupt:
+                raise
             except:
                 counter += 1
                 if counter >= attempts:

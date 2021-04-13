@@ -90,8 +90,10 @@ class AcousticModelTrainer(TrainerBase):
                 pass
 
     def _run_test(self):
-        test_accuracy = self._evaluator.evaluate()
+        test_accuracy, silence_slice, unknown_slice = self._evaluator.evaluate()
         tf.summary.scalar("test/accuracy", test_accuracy)
+        tf.summary.scalar("test/silence_slice", silence_slice)
+        tf.summary.scalar("test/unknown_slice", unknown_slice)
 
 
 class TrainerFactoryBase(ABC):

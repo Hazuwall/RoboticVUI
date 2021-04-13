@@ -5,6 +5,7 @@ from keras.utils.vis_utils import model_to_dot
 from keras_flops import get_flops
 import IPython.core.magics.namespace  # not used here, but need for tensorflow
 from types import SimpleNamespace
+from typing import Tuple
 import vui.frontend.dsp as dsp
 from vui.infrastructure.filesystem import FilesystemProvider
 from vui.model.services import FramesToEmbeddingService
@@ -66,14 +67,15 @@ def get_structure_info(model: tf.keras.Model) -> StructureInfo:
 
 
 class Evaluator:
-    def __init__(self, filesystem: FilesystemProvider, ref_word_dictionary: ReferenceWordsDictionary,
+    def __init__(self, config, filesystem: FilesystemProvider, ref_word_dictionary: ReferenceWordsDictionary,
                  f2e_service: FramesToEmbeddingService, word_recognizer: WordRecognizer):
+        self._config = config
         self._filesystem = filesystem
         self._f2e_service = f2e_service
         self._ref_word_dictionary = ref_word_dictionary
         self._word_recognizer = word_recognizer
 
-    def evaluate(self) -> float:
+    def evaluate(self) -> Tuple[float, float, float]:
         word_paths = self._filesystem.get_test_word_paths()
         if len(word_paths.keys()) == 0:
             return np.NaN
@@ -81,6 +83,8 @@ class Evaluator:
 
         total_count = 0
         correct_count = 0
+        silence_count = 0
+        unknown_count = 0
         word_samples_iterator = iter(word_samples.values())
         first_word_samples = next(word_samples_iterator)
         dictor_count = len(first_word_samples)
@@ -93,10 +97,12 @@ class Evaluator:
                         actual_word, _ = self._word_recognizer.recognize(
                             sample.frames)
                         correct_count += 1 if actual_word == expected_word else 0
+                        silence_count += 1 if actual_word == self._config.silence_word else 0
+                        unknown_count += 1 if actual_word == self._config.unknown_word else 0
                         total_count += 1
 
         self._ref_word_dictionary.force_load()
-        return np.true_divide(correct_count, total_count)
+        return np.true_divide(correct_count, total_count), np.true_divide(silence_count, total_count), np.true_divide(unknown_count, total_count)
 
     def _get_word_samples(self, word_paths: dict) -> dict:
         word_embeddings = {}

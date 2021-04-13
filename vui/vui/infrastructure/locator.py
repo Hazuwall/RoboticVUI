@@ -86,7 +86,7 @@ def get_dataset_pipeline_factory():
 @services.transient
 def get_evaluator():
     import vui.model.metrics as module
-    return module.Evaluator(get_filesystem_provider(), get_reference_words_dictionary(),
+    return module.Evaluator(config, get_filesystem_provider(), get_reference_words_dictionary(),
                             get_frames_to_embedding_service(), get_word_recognizer())
 
 

@@ -33,7 +33,7 @@
         {
             "label": "Tensorboard",
             "type": "shell",
-            "command": "python scripts/tensorboard.py",
+            "command": "python scripts/open_tensorboard.py",
             "presentation": {
                 "reveal": "always",
                 "focus": false,

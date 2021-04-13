@@ -65,7 +65,7 @@ class Trainer(AcousticModelTrainer):
                     cost, triplet_metrics)
 
         if step % self._config.checkpoint_interval == 0:
-            with tf.name_scope("validation"):
+            with tf.name_scope("validation/speech_commands"):
                 x, _ = self._validation_dataset.get_batch()
                 codes = self.model.encode(x, training=False)
                 cost, triplet_metrics = tf_utils.cos_similarity_triplet_loss(

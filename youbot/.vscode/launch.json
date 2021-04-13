@@ -6,7 +6,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "pythonPath": "C:\\opt\\ros\\noetic\\x64\\python.exe",
+            "python": "C:\\opt\\ros\\noetic\\x64\\python.exe",
             "console": "integratedTerminal"
         }
     ]

@@ -23,18 +23,20 @@ class FilesystemProvider:
                 return dir_name[experiment_name_start:]
         return coolname.generate_slug(2)
 
+    def get_logs_dir(self) -> str:
+        return self.get_experiment_dir() + "logs\\"
+
     def get_model_dir(self, model_name: str) -> SimpleNamespace:
         model_dir = self.get_experiment_dir() + model_name + "\\"
         return SimpleNamespace(
             plugin_modules=model_dir,
             weights=model_dir,
-            logs=model_dir + "logs\\",
             checkpoint=lambda step: model_dir + self.config.checkpoint_prefix + str(step))
 
     def get_core_module_path(self, module_name: str) -> str:
         return self.get_experiment_dir() + module_name + ".py"
 
-    def clone_core_modules(self, source_dir: str):
+    def clone_core_modules(self, source_dir: str) -> None:
         current_experiment_dir = self.get_experiment_dir()
 
         os.makedirs(current_experiment_dir, exist_ok=True)
@@ -49,12 +51,12 @@ class FilesystemProvider:
         prefix_length = len(self.config.checkpoint_prefix)
         return int(filename[prefix_length:])
 
-    def get_dataset_path(self, type_letter: str, label: Optional[str] = None):
+    def get_dataset_path(self, type_letter: str, label: Optional[str] = None) -> str:
         if label is None:
             label = self.config.dataset_label
         return self.config.datasets_dir + label + '_' + type_letter + ".hdf5"
 
-    def get_reference_word_paths(self):
+    def get_reference_word_paths(self) -> dict:
         dir_path = self.config.ref_words_dir
         file_list = os.listdir(dir_path)
         ref_words = {}
@@ -64,6 +66,16 @@ class FilesystemProvider:
             ref_words[word] = file_path
         return ref_words
 
-    def clear_experiment(self):
+    def get_test_word_paths(self) -> dict:
+        dir_path = self.config.test_words_dir
+        words = os.listdir(dir_path)
+        word_paths = {}
+        for word in words:
+            word_dir = os.path.join(dir_path, word)
+            word_paths[word] = [os.path.join(
+                word_dir, file) for file in os.listdir(word_dir)]
+        return word_paths
+
+    def clear_experiment(self) -> None:
         dir = self.get_experiment_dir()
         shutil.rmtree(dir, ignore_errors=True)

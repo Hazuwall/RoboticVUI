@@ -42,7 +42,3 @@ class ClassifierBase(ABC):
     @abstractmethod
     def classify(self, embeddings: tf.Tensor) -> tf.Tensor:
         pass
-
-    @abstractmethod
-    def train(self) -> None:
-        self._words_dictionary.update()

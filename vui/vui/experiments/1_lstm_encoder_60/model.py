@@ -87,6 +87,3 @@ class Classifier(ClassifierBase):
         similarity = tf_utils.cos_similarity(
             embeddings, ref_embeddings, axis=2)
         return similarity
-
-    def train(self):
-        super(Classifier, self).train()

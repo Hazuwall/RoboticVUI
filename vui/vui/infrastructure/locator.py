@@ -65,7 +65,7 @@ def get_weights_storage():
     return module.WeightsStorage(get_filesystem_provider())
 
 
-@services.transient
+@services.singleton
 def get_reference_words_dictionary():
     import vui.model.data_access as module
     return module.ReferenceWordsDictionary(config, get_filesystem_provider(), get_frames_to_embedding_service().encode)
@@ -81,6 +81,13 @@ def get_model_info_saver():
 def get_dataset_pipeline_factory():
     import vui.dataset.pipeline as module
     return module.DatasetPipelineFactory(config, get_filesystem_provider(), get_frontend_processor())
+
+
+@services.transient
+def get_evaluator():
+    import vui.model.metrics as module
+    return module.Evaluator(get_filesystem_provider(), get_reference_words_dictionary(),
+                            get_frames_to_embedding_service(), get_word_recognizer())
 
 
 @services.singleton
@@ -113,7 +120,7 @@ def get_voice_user_interface(word_handler):
 
 @services.transient
 def get_trainer_factory():
-    return get_core_module("training").TrainerFactory(config, get_filesystem_provider(), get_acoustic_model(), get_dataset_pipeline_factory())
+    return get_core_module("training").TrainerFactory(config, get_filesystem_provider(), get_acoustic_model(), get_dataset_pipeline_factory(), get_evaluator())
 
 
 @services.transient

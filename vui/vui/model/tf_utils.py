@@ -1,59 +1,5 @@
 import tensorflow as tf
-import sys
 import numpy as np
-
-
-def to_tiles(x):
-    return tf.reshape(x, [-1, self.config.steps_per_embedding, self.config.preprocess_shape[1]])
-
-
-def to_spectrograms(x):
-    return tf.reshape(x, [-1, self.config.preprocess_shape[0], self.config.preprocess_shape[1]])
-
-
-def print_stdout(op, tensors, message=None):
-    def print_message(x):
-        sys.stdout.write(message + " %s\n" % x)
-        return x
-
-    prints = [tf.py_func(print_message, [tensor], tensor.dtype)
-              for tensor in tensors]
-    with tf.control_dependencies(prints):
-        op = tf.identity(op)
-    return op
-
-
-def cost_summary(cost_op):
-    return tf.summary.scalar('cost', cost_op)
-
-
-def validation_summary(validation_error, step):
-    tf.print("Validation Error: ", validation_error,
-             output_stream=sys.stdout)
-    return tf.summary.scalar('validation_error', validation_error, step)
-
-
-def test_summary(test_accuracy_op):
-    test_accuracy_op = print_stdout(
-        test_accuracy_op, [test_accuracy_op], "Test Accuracy")
-    return tf.summary.scalar('test_accuracy', test_accuracy_op)
-
-
-def spectrogram_summary(title, images, step, max_count):
-    images = tf.reshape(
-        images, [-1, self.config.preprocess_shape[0], self.config.preprocess_shape[1], 1])
-    images = tf.pad(images, [[0, 0], [1, 0], [0, 0], [
-                    0, 0]], mode="CONSTANT", constant_values=0)
-    images = tf.pad(images, [[0, 0], [0, 1], [0, 0], [
-                    0, 0]], mode="CONSTANT", constant_values=1)
-    images = tf.transpose(images, (0, 2, 1, 3))
-    images = tf.reverse(images, axis=[1])
-    return tf.summary.image(title, images, step, max_outputs=max_count)
-
-
-def wrong_images_summary(images, index_mask, step, max_count=10):
-    images = tf.boolean_mask(images, index_mask)
-    return spectrogram_summary('wrong_images', images, step, max_count=max_count)
 
 
 def cos_similarity(x: tf.Tensor, y: tf.Tensor, axis=0, do_normalize=False):
@@ -64,6 +10,40 @@ def cos_similarity(x: tf.Tensor, y: tf.Tensor, axis=0, do_normalize=False):
         x = tf.linalg.normalize(x, axis=axis)[0]
         y = tf.linalg.normalize(y, axis=axis)[0]
     return tf.reduce_sum(tf.multiply(x, y), axis=axis)
+
+
+def cos_similarity_triplet_loss(codes: tf.Tensor, max_positive_similarity: float, min_negative_similarity: float):
+    coupled_codes = tf.reshape(codes, (-1, 2, codes.shape[1]))
+    anchor, positive = tf.unstack(coupled_codes, axis=1)
+    pos_distrib = cos_similarity(anchor, positive, axis=1)
+    pos_cost = tf.reduce_mean(tf.minimum(
+        max_positive_similarity, 1 - pos_distrib)**2)
+    pos_similarity = tf.reduce_mean(pos_distrib)
+
+    negative = tf.roll(positive, 1, axis=0)
+    neg_distrib = cos_similarity(anchor, negative, axis=1)
+
+    anchor = codes
+    negative = tf.roll(codes, 2, axis=0)
+    neg_distrib = tf.concat(
+        [neg_distrib, cos_similarity(anchor, negative, axis=1)], axis=0)
+    neg_cost = tf.reduce_mean(tf.maximum(
+        min_negative_similarity, neg_distrib)**2)
+    neg_similarity = tf.reduce_mean(neg_distrib)
+
+    cost = tf.debugging.check_numerics(pos_cost + neg_cost, "Cost is NaN.")
+    return cost, [pos_similarity, neg_similarity, pos_distrib, neg_distrib]
+
+
+def coupled_cos_similarity_accuracy(codes):
+    codes = tf.reshape(codes, (-1, 2, codes.shape[1]))
+    anchor, positive = tf.unstack(codes, axis=1)
+    anchor = tf.expand_dims(anchor, axis=1)
+    positive = tf.expand_dims(positive, axis=0)
+    similarity = cos_similarity(anchor, positive, axis=2)
+    incorrect_prediction = tf.not_equal(tf.argmax(
+        similarity, axis=0), tf.cast(tf.range(similarity.shape[0]), tf.int64))
+    return 1 - tf.reduce_mean(tf.cast(incorrect_prediction, tf.float32))
 
 
 def ones_distance(x: tf.Tensor, y: tf.Tensor, axis=0):

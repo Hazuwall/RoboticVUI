@@ -3,7 +3,6 @@ from typing import Callable, Optional
 import numpy as np
 import vui.frontend.dsp as dsp
 from vui.infrastructure.filesystem import FilesystemProvider
-from vui.model.metrics import StructureInfo
 
 
 class WeightsStorage:
@@ -38,11 +37,9 @@ class ReferenceWordsDictionary():
         self.filesystem = filesystem
         self.frames_encoding_handler = frames_encoding_handler
 
-        words, embeddings = self.get_ref_words()
-        self.words = words
-        self.embeddings = embeddings
+        self.force_load()
 
-    def get_ref_words(self):
+    def force_load(self) -> None:
         ref_word_paths = self.filesystem.get_reference_word_paths()
         words = []
         embeddings = []
@@ -51,10 +48,10 @@ class ReferenceWordsDictionary():
             embedding = self.frames_encoding_handler(frames)
             words.append(word)
             embeddings.append(embedding)
-        return words, np.stack(embeddings, axis=0)
+        self.words = words
+        self.embeddings = np.stack(embeddings, axis=0)
 
-    def update(self):
-        words, embeddings = self.get_ref_words()
+    def update(self, words, embeddings) -> None:
         self.words = words
         self.embeddings = embeddings
 
@@ -63,7 +60,7 @@ class ModelInfoSaver:
     def __init__(self, filesystem: FilesystemProvider) -> None:
         self._filesystem = filesystem
 
-    def save_structure_info(self, info: StructureInfo) -> None:
+    def save_structure_info(self, info) -> None:
         dir_path = self._filesystem.get_experiment_dir()
         structure_filename = "structure.svg"
         structure_file = open(dir_path + structure_filename, "wb")

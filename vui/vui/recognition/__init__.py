@@ -1,7 +1,7 @@
 import numpy as np
 import pyaudio
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 import vui.frontend.dsp as dsp
 from vui.model.abstract import ClassifierBase
 from vui.model.services import FramesToEmbeddingService
@@ -12,9 +12,8 @@ class WordRecognizer():
         self.config = config
         self.frames_to_embedding_service = frames_to_embedding_service
         self.classifier = classifier
-        self.classifier.train()
 
-    def recognize(self, frames):
+    def recognize(self, frames: np.ndarray) -> Tuple[str, float]:
         word = self.config.silence_word
         weight = 0
         sg = dsp.make_spectrogram(frames, self.config.seg_length)

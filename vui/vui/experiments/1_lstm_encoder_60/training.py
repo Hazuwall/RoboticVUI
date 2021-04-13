@@ -29,43 +29,46 @@ class Trainer(AcousticModelTrainer):
             "t_mx_Mix").with_fetch_mode(COUPLED_FETCH_MODE).shuffle().augment().cache().build()
 
         self._dataset = pipeline_factory.get_builder().merge(line1, line2).build()
-
-        summary_writer = self._summary_writer
-        training_accuracy_label = str.format(
-            "training/accuracy/{}words", config.batch_size // 2)
+        self._validation_dataset = pipeline_factory.get_builder().from_labeled_storage(
+            "s_en_SpeechCommands").with_size(config.validation_size).with_fetch_mode(COUPLED_FETCH_MODE).build()
 
         optimizer = tf.keras.optimizers.Adam()
         model = self._acoustic_model
 
         # Graph initialization
         @tf.function
-        def train_step(x, step):
-            with summary_writer.as_default():
-                with tf.GradientTape() as tape:
-                    codes = model.encode(x, training=True)
-                    cost, metrics = tf_utils.cos_similarity_triplet_loss(
-                        codes, 0.95, 0.3)
-                    training_accuracy = tf_utils.coupled_cos_similarity_accuracy(
-                        codes[:self._config.batch_size])
-                    if step % config.display_interval == 0:
-                        tf.summary.scalar(
-                            training_accuracy_label, training_accuracy, step)
-                        tf.summary.scalar('training/cost', cost, step)
-                        tf.summary.scalar(
-                            'training/pos_similarity', metrics[0], step)
-                        tf.summary.scalar(
-                            'training/neg_similarity', metrics[1], step)
-                        tf.summary.histogram(
-                            'training/pos_distrib', metrics[2], step)
-                        tf.summary.histogram(
-                            'training/neg_distrib', metrics[3], step)
+        def train_step(x):
+            with tf.GradientTape() as tape:
+                codes = model.encode(x, training=True)
+                cost, metrics = tf_utils.cos_similarity_triplet_loss(
+                    codes, 0.95, 0.3)
+                accuracy = tf_utils.coupled_cos_similarity_accuracy(
+                    codes[:self._config.batch_size])
 
-                    vars = model.encoder.trainable_variables
-                    gradients = tape.gradient(cost, vars)
-                    optimizer.apply_gradients(zip(gradients, vars))
+                vars = model.encoder.trainable_variables
+                gradients = tape.gradient(cost, vars)
+                optimizer.apply_gradients(zip(gradients, vars))
+
+                return accuracy, cost, metrics
 
         self.train_step = train_step
 
     def run_step_core(self, step: tf.Tensor):
         x, _ = self._dataset.get_batch()
-        self.train_step(x, step)
+        accuracy, cost, triplet_metrics = self.train_step(x)
+
+        if step % self._config.display_interval == 0:
+            with tf.name_scope("training"):
+                tf.summary.scalar(
+                    "accuracy/{}words".format(self._config.batch_size // 2), accuracy)
+                tf_utils.cos_similarity_triplet_summary(
+                    cost, triplet_metrics)
+
+        if step % self._config.checkpoint_interval == 0:
+            with tf.name_scope("validation"):
+                x, _ = self._validation_dataset.get_batch()
+                codes = self.model.encode(x, training=False)
+                cost, triplet_metrics = tf_utils.cos_similarity_triplet_loss(
+                    codes)
+                tf_utils.cos_similarity_triplet_summary(
+                    cost, triplet_metrics)

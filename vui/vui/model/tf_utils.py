@@ -12,7 +12,7 @@ def cos_similarity(x: tf.Tensor, y: tf.Tensor, axis=0, do_normalize=False):
     return tf.reduce_sum(tf.multiply(x, y), axis=axis)
 
 
-def cos_similarity_triplet_loss(codes: tf.Tensor, max_positive_similarity: float, min_negative_similarity: float):
+def cos_similarity_triplet_loss(codes: tf.Tensor, max_positive_similarity: float = 1, min_negative_similarity: float = -1):
     coupled_codes = tf.reshape(codes, (-1, 2, codes.shape[1]))
     anchor, positive = tf.unstack(coupled_codes, axis=1)
     pos_distrib = cos_similarity(anchor, positive, axis=1)
@@ -33,6 +33,14 @@ def cos_similarity_triplet_loss(codes: tf.Tensor, max_positive_similarity: float
 
     cost = tf.debugging.check_numerics(pos_cost + neg_cost, "Cost is NaN.")
     return cost, [pos_similarity, neg_similarity, pos_distrib, neg_distrib]
+
+
+def cos_similarity_triplet_summary(cost: float, metrics: list) -> None:
+    tf.summary.scalar('cost', cost)
+    tf.summary.scalar('pos_similarity', metrics[0])
+    tf.summary.scalar('neg_similarity', metrics[1])
+    tf.summary.histogram('pos_distrib', metrics[2])
+    tf.summary.histogram('neg_distrib', metrics[3])
 
 
 def coupled_cos_similarity_accuracy(codes):

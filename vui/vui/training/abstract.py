@@ -37,16 +37,16 @@ class AcousticModelTrainer(TrainerBase):
         pass
 
     def run_step(self, step: tf.Tensor) -> None:
-        self.retry_on_error(lambda: self.run_step_core(step), 5)
+        with self._summary_writer.as_default(step):
+            self.retry_on_error(lambda: self.run_step_core(step), 5)
 
-        if (step % self._config.checkpoint_interval) == 0:
-            self.model.save(int(step))
-            if self._config.verbose:
-                print(int(step))
+            if (step % self._config.checkpoint_interval) == 0:
+                self.model.save(int(step))
+                if self._config.verbose:
+                    print(int(step))
 
-            with self._summary_writer.as_default():
                 test_accuracy = self._evaluator.evaluate()
-                tf.summary.scalar("test/accuracy", test_accuracy, step)
+                tf.summary.scalar("test/accuracy", test_accuracy)
 
         self._summary_writer.flush()
 
@@ -60,6 +60,7 @@ class AcousticModelTrainer(TrainerBase):
                 if counter >= attempts:
                     raise
                 else:
+                    print("Non-fatal error has occured.")
                     continue
             else:
                 break

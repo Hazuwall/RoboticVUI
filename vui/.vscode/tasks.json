@@ -14,7 +14,7 @@
             "presentation": {
                 "reveal": "always",
                 "focus": true,
-                "panel": "shared",
+                "panel": "dedicated",
                 "showReuseMessage": true,
                 "clear": true
             }
@@ -26,7 +26,18 @@
             "presentation": {
                 "reveal": "always",
                 "focus": true,
-                "panel": "shared",
+                "panel": "dedicated",
+                "showReuseMessage": true
+            }
+        },
+        {
+            "label": "Tensorboard",
+            "type": "shell",
+            "command": "python scripts/tensorboard.py",
+            "presentation": {
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
                 "showReuseMessage": true
             }
         }

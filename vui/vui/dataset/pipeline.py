@@ -106,7 +106,7 @@ class DatasetPipelineBuilder():
 
         self._labeled: Optional[bool] = None
         self._dataset_name: Optional[str] = None
-        self._start_index = config.validation_size + config.test_size
+        self._start_index = 0
         self._size = config.batch_size
         self._fetch_mode = RANDOM_FETCH_MODE
 

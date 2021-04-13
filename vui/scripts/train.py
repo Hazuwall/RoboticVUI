@@ -15,10 +15,7 @@ def main(stage: int = 0):
     end_step = start_step + config.training_steps
 
     print("Optimization Started!")
-
-    for step in tf.range(start_step, end_step, dtype=tf.int64):
-        trainer.run_step(step)
-
+    trainer.run(start_step, end_step)
     print("Optimization Finished!")
 
 

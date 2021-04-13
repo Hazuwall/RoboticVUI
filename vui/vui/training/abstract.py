@@ -17,6 +17,10 @@ class TrainerBase(ABC):
     def run_step(self, step: tf.Tensor) -> None:
         pass
 
+    @abstractmethod
+    def run(self, start_step: int, end_step: int) -> None:
+        pass
+
 
 class AcousticModelTrainer(TrainerBase):
     def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, dataset_pipeline_factory: DatasetPipelineFactory, evaluator: Evaluator) -> None:
@@ -43,27 +47,32 @@ class AcousticModelTrainer(TrainerBase):
         pass
 
     def run_step(self, step: tf.Tensor) -> None:
-        try:
-            with self._summary_writer.as_default(step):
-                with self._timer:
-                    self._retry_on_error(lambda: self.run_step_core(step), 5)
+        with self._summary_writer.as_default(step):
+            with self._timer:
+                self._retry_on_error(lambda: self.run_step_core(step), 5)
 
-                if step % self._config.display_interval == 0:
-                    tf.summary.scalar("training/avg_step_time",
-                                      self._timer.reset())
+            if step % self._config.display_interval == 0:
+                tf.summary.scalar("training/avg_step_time",
+                                  self._timer.reset())
 
-                if (step % self._config.checkpoint_interval) == 0:
-                    self.model.save(int(step))
-                    if self._config.verbose:
-                        print(int(step))
+            if (step % self._config.checkpoint_interval) == 0:
+                self.model.save(int(step))
+                if self._config.verbose:
+                    print(int(step))
 
-                    self._run_validation()
-                    self._run_test()
-            self._summary_writer.flush()
+                self._run_validation()
+                self._run_test()
 
-        except KeyboardInterrupt:
-            self.model.save(int(step))
-            raise
+        self._summary_writer.flush()
+
+    def run(self, start_step: int, end_step: int):
+        for step in tf.range(start_step, end_step, dtype=tf.int64):
+            try:
+                self.run_step(step)
+            except KeyboardInterrupt:
+                self.model.save(int(step))
+                print("Stopped by user.")
+                break
 
     def _retry_on_error(self, func: Callable, attempts: int):
         counter = 0

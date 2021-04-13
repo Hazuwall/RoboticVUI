@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import time
 from keras.utils.layer_utils import count_params
 from keras.utils.vis_utils import model_to_dot
 from keras_flops import get_flops
@@ -64,6 +65,27 @@ def get_structure_info(model: tf.keras.Model) -> StructureInfo:
                             show_shapes=True, dpi=None).create(prog='dot', format='svg')
     info.flops = get_flops(model, batch_size=1)
     return info
+
+
+class AveragingTimer:
+    def __init__(self) -> None:
+        self._count = 0
+        self._total_time = 0
+        self._last_start_time = 0
+
+    def __enter__(self) -> None:
+        self._last_start_time = time.monotonic()
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self._count += 1
+        self._total_time += time.monotonic() - self._last_start_time
+        self._last_start_time = 0
+
+    def reset(self) -> float:
+        avg_time = 0 if self._count == 0 else self._total_time / self._count
+        self._count = 0
+        self._total_time = 0
+        return avg_time
 
 
 class Evaluator:

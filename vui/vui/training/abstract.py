@@ -1,11 +1,10 @@
 from typing import Callable
-import time
 import tensorflow as tf
 from abc import ABC, abstractmethod, abstractproperty
 from vui.dataset.pipeline import COUPLED_FETCH_MODE, DatasetPipelineFactory
 from vui.infrastructure.filesystem import FilesystemProvider
 from vui.model.abstract import AcousticModelBase
-from vui.model.metrics import Evaluator
+from vui.model.metrics import AveragingTimer, Evaluator
 import vui.model.tf_utils as tf_utils
 
 
@@ -33,6 +32,8 @@ class AcousticModelTrainer(TrainerBase):
         self._validation_dataset = dataset_pipeline_factory.get_builder().from_labeled_storage(
             "s_en_SpeechCommands").with_size(config.validation_size).with_fetch_mode(COUPLED_FETCH_MODE).build()
 
+        self._timer = AveragingTimer()
+
     @property
     def model(self):
         return self._acoustic_model
@@ -43,12 +44,12 @@ class AcousticModelTrainer(TrainerBase):
 
     def run_step(self, step: tf.Tensor) -> None:
         with self._summary_writer.as_default(step):
-            start_time = time.monotonic()
-            self._retry_on_error(lambda: self.run_step_core(step), 5)
-            step_time = time.monotonic() - start_time
+            with self._timer:
+                self._retry_on_error(lambda: self.run_step_core(step), 5)
 
             if step % self._config.display_interval == 0:
-                tf.summary.scalar("training/step_time", step_time)
+                tf.summary.scalar("training/avg_step_time",
+                                  self._timer.reset())
 
             if (step % self._config.checkpoint_interval) == 0:
                 self.model.save(int(step))

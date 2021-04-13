@@ -43,23 +43,27 @@ class AcousticModelTrainer(TrainerBase):
         pass
 
     def run_step(self, step: tf.Tensor) -> None:
-        with self._summary_writer.as_default(step):
-            with self._timer:
-                self._retry_on_error(lambda: self.run_step_core(step), 5)
+        try:
+            with self._summary_writer.as_default(step):
+                with self._timer:
+                    self._retry_on_error(lambda: self.run_step_core(step), 5)
 
-            if step % self._config.display_interval == 0:
-                tf.summary.scalar("training/avg_step_time",
-                                  self._timer.reset())
+                if step % self._config.display_interval == 0:
+                    tf.summary.scalar("training/avg_step_time",
+                                      self._timer.reset())
 
-            if (step % self._config.checkpoint_interval) == 0:
-                self.model.save(int(step))
-                if self._config.verbose:
-                    print(int(step))
+                if (step % self._config.checkpoint_interval) == 0:
+                    self.model.save(int(step))
+                    if self._config.verbose:
+                        print(int(step))
 
-                self._run_validation()
-                self._run_test()
+                    self._run_validation()
+                    self._run_test()
+            self._summary_writer.flush()
 
-        self._summary_writer.flush()
+        except KeyboardInterrupt:
+            self.model.save(int(step))
+            raise
 
     def _retry_on_error(self, func: Callable, attempts: int):
         counter = 0
@@ -91,10 +95,11 @@ class AcousticModelTrainer(TrainerBase):
                 pass
 
     def _run_test(self):
-        test_accuracy, silence_slice, unknown_slice = self._evaluator.evaluate()
-        tf.summary.scalar("test/accuracy", test_accuracy)
-        tf.summary.scalar("test/silence_slice", silence_slice)
-        tf.summary.scalar("test/unknown_slice", unknown_slice)
+        with tf.name_scope("test"):
+            test_accuracy, silence_slice, unknown_slice = self._evaluator.evaluate()
+            tf.summary.scalar("accuracy", test_accuracy)
+            tf.summary.scalar("silence_slice", silence_slice)
+            tf.summary.scalar("unknown_slice", unknown_slice)
 
 
 class TrainerFactoryBase(ABC):

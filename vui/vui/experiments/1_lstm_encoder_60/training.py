@@ -29,8 +29,6 @@ class Trainer(AcousticModelTrainer):
             "t_mx_Mix").with_fetch_mode(COUPLED_FETCH_MODE).shuffle().augment().cache().build()
 
         self._dataset = pipeline_factory.get_builder().merge(line1, line2).build()
-        self._validation_dataset = pipeline_factory.get_builder().from_labeled_storage(
-            "s_en_SpeechCommands").with_size(config.validation_size).with_fetch_mode(COUPLED_FETCH_MODE).build()
 
         optimizer = tf.keras.optimizers.Adam()
         model = self._acoustic_model
@@ -61,14 +59,5 @@ class Trainer(AcousticModelTrainer):
             with tf.name_scope("training"):
                 tf.summary.scalar(
                     "accuracy/{}words".format(self._config.batch_size // 2), accuracy)
-                tf_utils.cos_similarity_triplet_summary(
-                    cost, triplet_metrics)
-
-        if step % self._config.checkpoint_interval == 0:
-            with tf.name_scope("validation/speech_commands"):
-                x, _ = self._validation_dataset.get_batch()
-                codes = self.model.encode(x, training=False)
-                cost, triplet_metrics = tf_utils.cos_similarity_triplet_loss(
-                    codes)
                 tf_utils.cos_similarity_triplet_summary(
                     cost, triplet_metrics)

@@ -49,7 +49,7 @@ class AcousticModelTrainer(TrainerBase):
     def run_step(self, step: tf.Tensor) -> None:
         with self._summary_writer.as_default(step):
             with self._timer:
-                self._retry_on_error(lambda: self.run_step_core(step), 5)
+                self.run_step_core(step)
 
             if step % self._config.display_interval == 0:
                 tf.summary.scalar("training/avg_step_time",
@@ -74,34 +74,14 @@ class AcousticModelTrainer(TrainerBase):
                 print("Stopped by user.")
                 break
 
-    def _retry_on_error(self, func: Callable, attempts: int):
-        counter = 0
-        while True:
-            try:
-                func()
-            except KeyboardInterrupt:
-                raise
-            except:
-                counter += 1
-                if counter >= attempts:
-                    raise
-                else:
-                    print("Non-fatal error has occured.")
-                    continue
-            else:
-                break
-
     def _run_validation(self):
         with tf.name_scope("validation/speech_commands"):
-            try:
-                x, _ = self._validation_dataset.get_batch()
-                codes = self.model.encode(x, training=False)
-                cost, triplet_metrics = tf_utils.cos_similarity_triplet_loss(
-                    codes)
-                tf_utils.cos_similarity_triplet_summary(
-                    cost, triplet_metrics)
-            except:
-                pass
+            x, _ = self._validation_dataset.get_batch()
+            codes = self.model.encode(x, training=False)
+            cost, triplet_metrics = tf_utils.cos_similarity_triplet_loss(
+                codes)
+            tf_utils.cos_similarity_triplet_summary(
+                cost, triplet_metrics)
 
     def _run_test(self):
         with tf.name_scope("test"):

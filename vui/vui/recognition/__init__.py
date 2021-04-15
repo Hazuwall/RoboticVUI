@@ -14,24 +14,19 @@ class WordRecognizer():
         self.classifier = classifier
 
     def recognize(self, frames: np.ndarray) -> Tuple[str, float]:
-        word = self.config.silence_word
         weight = 0
-        sg = dsp.make_spectrogram(frames, self.config.seg_length)
-        indices = dsp.detect_words(sg)
-        if len(indices) > 0:
-            embedding = self.frames_to_embedding_service.encode(
-                frames, indices)
-            logits = self.classifier.classify(embedding)
+        embedding = self.frames_to_embedding_service.encode(frames)
+        logits = self.classifier.classify(embedding)
 
-            best_fragment_index = np.argmax(np.max(logits, axis=1), axis=0)
-            best_fragment_logits = logits[best_fragment_index]
+        best_fragment_index = np.argmax(np.max(logits, axis=1), axis=0)
+        best_fragment_logits = logits[best_fragment_index]
 
-            weight = np.max(best_fragment_logits)
-            if weight > self.config.min_word_weight:
-                word_index = np.argmax(best_fragment_logits)
-                word = self.classifier.get_word(int(word_index))
-            else:
-                word = self.config.unknown_word
+        weight = np.max(best_fragment_logits)
+        if weight > self.config.min_word_weight:
+            word_index = np.argmax(best_fragment_logits)
+            word = self.classifier.get_word(int(word_index))
+        else:
+            word = self.config.unknown_word
         return word, weight
 
 

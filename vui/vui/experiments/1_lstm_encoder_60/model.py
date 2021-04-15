@@ -4,6 +4,7 @@ from typing import List, Optional
 from vui.model.data_access import WeightsStorage, ReferenceWordsDictionary
 import vui.model.tf_utils as tf_utils
 from vui.model.abstract import AcousticModelBase, ClassifierBase
+from vui.model.layers.Hypersphere import Hypersphere
 
 
 class AcousticModel(AcousticModelBase):
@@ -50,6 +51,7 @@ class AcousticModel(AcousticModelBase):
             x = dense_block(x, 192)
             x = dense_block(x, 128)
             x = tf.keras.layers.Dense(60)(x)
+            x = Hypersphere()(x)
 
             # Output
             return tf.keras.Model(
@@ -65,8 +67,7 @@ class AcousticModel(AcousticModelBase):
         self._stage_checkpoints[0] = step
 
     def encode(self, x: np.ndarray, training: bool = False) -> tf.Tensor:
-        codes = self._encoder(x, training=training)
-        return tf.linalg.normalize(codes, axis=1)[0]
+        return self._encoder(x, training=training)
 
     @property
     def encoder(self):

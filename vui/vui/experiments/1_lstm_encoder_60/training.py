@@ -36,7 +36,7 @@ class Trainer(AcousticModelTrainer):
                 cost, metrics = tf_utils.cos_similarity_triplet_loss(
                     codes, 0.95, 0.3)
                 accuracy = tf_utils.coupled_cos_similarity_accuracy(
-                    codes[:self._config.batch_size])
+                    codes[:-self._config.batch_size])
 
                 vars = model.encoder.trainable_variables
                 gradients = tape.gradient(cost, vars)

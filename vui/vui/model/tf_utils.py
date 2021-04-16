@@ -49,8 +49,9 @@ def coupled_cos_similarity_accuracy(codes):
     anchor = tf.expand_dims(anchor, axis=1)
     positive = tf.expand_dims(positive, axis=0)
     similarity = cos_similarity(anchor, positive, axis=2)
-    incorrect_prediction = tf.not_equal(tf.argmax(
-        similarity, axis=0), tf.cast(tf.range(similarity.shape[0]), tf.int64))
+    expected = tf.cast(tf.range(similarity.shape[0]), tf.int64)
+    actual = tf.argmax(similarity, axis=0)
+    incorrect_prediction = tf.not_equal(actual, expected)
     return 1 - tf.reduce_mean(tf.cast(incorrect_prediction, tf.float32))
 
 

@@ -1,5 +1,3 @@
-from typing import Callable
-import tensorflow as tf
 import vui.infrastructure.locator as locator
 import vui.model.metrics as metrics
 

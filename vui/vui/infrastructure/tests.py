@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import vui.infrastructure.locator as locator
-from vui.dataset.pipeline import RANDOM_FETCH_MODE, HdfStorage
+import vui.dataset.pipeline as pipeline
 import vui.frontend.dsp as dsp
 
 config = locator.get_config()
@@ -19,16 +19,12 @@ def input_local():
 
 
 def input() -> np.ndarray:
-    dataset_path = filesystem.get_dataset_path(
-        "r", label="s_en_SpeechCommands")
-    storage = HdfStorage(dataset_path, "raw")
+    storage = pipeline.get_hdf_storage('r', "s_en_SpeechCommands")
     return np.reshape(storage.fetch_subset("tree", 0, 1), [-1])
 
 
 def input_bulk(n: int) -> np.ndarray:
-    dataset_path = filesystem.get_dataset_path(
-        "r", label="t_mx_Mix")
-    storage = HdfStorage(dataset_path, "raw")
+    storage = pipeline.get_hdf_storage('r', "t_mx_Mix")
     return storage.fetch_subset("", 0, n)
 
 

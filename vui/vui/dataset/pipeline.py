@@ -1,18 +1,14 @@
+from abc import ABC, abstractmethod, abstractproperty
 import random
-import numpy as np
-import h5py
-import math
-from typing import Callable, Optional
-from vui.infrastructure.filesystem import FilesystemProvider
-import vui.dataset.augmentation as augmentation
+from typing import Optional, Tuple
 from vui.frontend.abstract import FrontendProcessorBase
+import numpy as np
+from vui.dataset.storage import HdfStorage, COUPLED_FETCH_MODE, RANDOM_FETCH_MODE
+from vui.dataset import augmentation
+import vui.infrastructure.locator as locator
 
-RANDOM_FETCH_MODE = "RANDOM"
-ROW_FETCH_MODE = "ROW"
-COUPLED_FETCH_MODE = "COUPLED"
 
-
-def convert_group_indices_to_item_indices(group_indices: list, group_size: int) -> list:
+def expand_group_indices_to_item_indices(group_indices: list, group_size: int) -> list:
     indices = []
     for i in group_indices:
         for j in range(group_size):
@@ -20,273 +16,221 @@ def convert_group_indices_to_item_indices(group_indices: list, group_size: int) 
     return indices
 
 
-class HdfStorage:
-    def __init__(self, path, group_label):
-        self.path = path
-        self.group_label = group_label + '/' if group_label else ''
+def get_hdf_storage(type_letter: str, label: str) -> HdfStorage:
+    mapping = {
+        "r": "raw",
+        "h": "harmonics",
+        "e": "embeddings"
+    }
 
-    def get_dataset_list(self):
-        """Get the list of all saved datasets and groups"""
-        items = []
-        with h5py.File(self.path, 'a') as f:
-            f[self.group_label].visititems(lambda t, _: items.append(t))
-        return items
-
-    def delete(self, label: str):
-        """Delete dataset or group"""
-        with h5py.File(self.path, 'a') as f:
-            del f[self.group_label + label]
-
-    def clear_dataset(self, label: str):
-        with h5py.File(self.path, 'a') as f:
-            dset = f[self.group_label + label]
-            mask = np.ones(len(dset), np.bool)
-            for i in range(len(dset)):
-                if np.max(dset[i]) < 0.0001 or np.isnan(dset[i]).any():
-                    mask[i] = 0
-            count = np.count_nonzero(mask)
-            dset[:count, :] = dset[mask, :]
-            shape = list(dset.shape)
-            shape[0] = count
-            dset.resize(shape)
-
-    def fetch_subset(self, label: str, start: int, size: int, mode=RANDOM_FETCH_MODE, return_indices=False):
-        """Fetch a subset from the dataset.
-        Returns:
-            If mode=RANDOM, a random subset of the given size from the dataset
-            skipping specified number of items
-            If mode=ROW, a subset of items in a row"""
-        with h5py.File(self.path, 'r') as f:
-            dset = f[self.group_label + label]
-            if mode == ROW_FETCH_MODE:
-                X = dset[start:start+size]
-                indices = range(start, start+size)
-            else:
-                if mode == COUPLED_FETCH_MODE:
-                    group_size = 4
-                    group_indices = sorted(random.sample(
-                        range(math.ceil(start/group_size), len(dset)//group_size), size//group_size))
-                    indices = convert_group_indices_to_item_indices(
-                        group_indices, group_size)
-                    X = dset[indices]
-                else:
-                    indices = sorted(random.sample(
-                        range(start, len(dset)), size))
-                    X = dset[indices]
-            X = np.nan_to_num(X)
-            if return_indices:
-                return X, indices
-            else:
-                return X
-
-    def fetch_subset_from_indices(self, label: str, indices):
-        with h5py.File(self.path, 'r') as f:
-            return np.nan_to_num(f[self.group_label + label][sorted(indices)])
+    path = locator.get_filesystem_provider().get_dataset_path(type_letter, label)
+    return HdfStorage(path, mapping[type_letter])
 
 
-class DatasetPipeline():
-    def __init__(self, get_subset_handler: Callable, start_index: int, size: int, fetch_mode: str):
-        self._get_subset = get_subset_handler
-        self._start_index = start_index
-        self._size = size
-        self._fetch_mode = fetch_mode
+class Pipe(ABC):
+    @abstractmethod
+    def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get 3D-array of data X and vector of indices y."""
+        pass
+
+    @abstractproperty
+    def output_shape(self) -> list:
+        """A shape of 3D-array without first axis."""
+        pass
+
+
+class SourcePipe(Pipe):
+    def __init__(self, output_shape: list) -> None:
+        self._output_shape = output_shape
+
+    @property
+    def output_shape(self) -> list:
+        return self._output_shape
+
+
+class TransformPipe(Pipe):
+    def __init__(self, output_shape: Optional[list] = None) -> None:
+        self._input_shape = None
+        self._output_shape = output_shape
+        self._previous_pipe: Optional[Pipe] = None
+        self._do_clone_shape = output_shape is None
+
+    @property
+    def input_shape(self) -> list:
+        return self._input_shape
+
+    @property
+    def output_shape(self) -> list:
+        return self._output_shape
+
+    def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
+        batch = self._previous_pipe.get_batch()
+        return self.process(*batch)
+
+    @abstractmethod
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        pass
+
+    def __call__(self, previous_pipe: Pipe) -> Pipe:
+        self._previous_pipe = previous_pipe
+        self._input_shape = previous_pipe.output_shape
+        if self._do_clone_shape:
+            self._output_shape = self._input_shape
+        return self
+
+
+class LabeledStorage(SourcePipe):
+    def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int, start_index: int = 0,
+                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None) -> None:
+        super().__init__(output_shape)
+
+        labels = storage.get_dataset_list() if labels is None else labels
+        if fetch_mode == COUPLED_FETCH_MODE:
+            fetch_mode = RANDOM_FETCH_MODE
+            do_split_into_couples = True
+            labels = random.sample(labels, 2)
+        else:
+            do_split_into_couples = False
+
+        self.storage = storage
+        self.labels = labels
+        self.batch_size = batch_size
+        self.start_index = start_index
+        self.fetch_mode = fetch_mode
+        self.do_split_into_couples = do_split_into_couples
+        self.validate()
+
+    def validate(self):
+        if self.batch_size % len(self.labels) != 0:
+            raise ValueError("Batch size = {} is not divisible by class count = {}.".format(
+                self.batch_size, len(self.labels)))
+
+        if self.do_split_into_couples and (self.batch_size % 4 != 0):
+            raise ValueError(
+                "Batch size = {} is not divisible by 4.".format(self.batch_size))
+
+    def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
+        class_count = len(self.labels)
+        class_size = self.batch_size//class_count
+
+        shape = self.output_shape
+
+        x = np.zeros([self.batch_size, shape[0], shape[1]])
+        y = np.zeros([self.batch_size])
+
+        for class_i, label in enumerate(self.labels):
+            index = class_i * class_size
+            x[index:index+class_size] = self.storage.fetch_subset(
+                label, self.start_index, class_size, mode=self.fetch_mode)
+            y[index:index+class_size] = class_i
+
+        if self.do_split_into_couples:
+            x = np.reshape(x, [2, -1, 2, shape[0], shape[1]])
+            x = np.transpose(x, [1, 0, 2, 3, 4])
+            x = np.reshape(x, [-1, shape[0], shape[1]])
+            y = np.reshape(y, [2, -1, 2])
+            y = np.transpose(y, [1, 0, 2])
+            y = np.reshape(y, [-1])
+        return x, y
+
+
+class UnlabeledStorage(SourcePipe):
+    def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int,
+                 start_index: int = 0, fetch_mode: str = RANDOM_FETCH_MODE) -> None:
+        super().__init__(output_shape)
+
+        self.storage = storage
+        self.batch_size = batch_size
+        self.start_index = start_index
+        self.fetch_mode = fetch_mode
+        self.validate()
+
+    def validate(self):
+        if self.fetch_mode == COUPLED_FETCH_MODE and (self.batch_size % 4 != 0):
+            raise ValueError(
+                "Batch size = {} is not divisible by 4.".format(self.batch_size))
+
+    def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
+        x, indices = self.storage.fetch_subset(
+            '', self.start_index, self.batch_size, mode=self.fetch_mode, return_indices=True)
+        return x, np.asarray(indices)
+
+
+class UnlabeledAugment(TransformPipe):
+    def __init__(self, storage: HdfStorage, frontend: FrontendProcessorBase, rate: float, framerate: float) -> None:
+        super().__init__()
+        self.storage = storage
+        self.rate = rate
+        self.framerate = framerate
+        self.frontend = frontend
+
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        aug_size = int(self.rate*len(x))
+
+        y_indices = range(len(y))
+        y_aug_indices = random.sample(y_indices, aug_size)
+        y_aug = y[y_aug_indices]
+
+        x_aug = self.storage.fetch_subset_from_indices("", y_aug)
+        x_aug = augmentation.apply_some_filters(
+            x_aug, self.framerate)
+
+        j = 0
+        for i in y_aug_indices:
+            x[i] = self.frontend.process(x_aug[j])
+            j += 1
+
+        return x, y
+
+
+class Cache(TransformPipe):
+    def __init__(self, batch_size: int) -> None:
+        super().__init__()
+
+        self.batch_size = batch_size
+        self.x_cache = None
+        self.y_cache = None
+        self.index = 0
+
+    def fill_if_needed(self):
+        if (self.x_cache is None) or (self.index + self.batch_size > len(self.x_cache)):
+            self.x_cache, self.y_cache = self._previous_pipe.get_batch()
+            self.index = 0
 
     def get_batch(self):
-        return self._get_subset(self._size, self._start_index, self._fetch_mode)
+        self.fill_if_needed()
+
+        x = self.x_cache[self.index:self.index + self.batch_size]
+        y = self.y_cache[self.index:self.index + self.batch_size]
+        self.index += self.batch_size
+        return x, y
+
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        return x, y
 
 
-class DatasetPipelineBuilder():
-    def __init__(self, config, filesystem: FilesystemProvider, frontend: FrontendProcessorBase):
-        self._config = config
-        self._filesystem = filesystem
-        self._frontend = frontend
+class Shuffle(TransformPipe):
+    def __init__(self, group_size: int = 1) -> None:
+        super().__init__()
+        self.group_size = group_size
 
-        self._last_pipe: Optional[Callable] = None
-        self._is_finalized = False
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        group_indices = np.arange(len(x)//self.group_size)
+        np.random.shuffle(group_indices)
+        indices = expand_group_indices_to_item_indices(
+            group_indices, self.group_size)
 
-        self._labeled: Optional[bool] = None
-        self._dataset_name: Optional[str] = None
-        self._start_index = 0
-        self._size = config.batch_size
-        self._fetch_mode = RANDOM_FETCH_MODE
-
-    def _create_pipe(self, handler: Callable, previous_pipe: Callable):
-        def pipe(size: int, start_index: int, fetch_mode: str):
-            return handler(size, start_index, fetch_mode, previous_pipe)
-        return pipe
-
-    def attach_handler(self, handler: Callable):
-        if self._is_finalized:
-            raise ValueError("Pipeline has been finalized!")
-        self._last_pipe = self._create_pipe(handler, self._last_pipe)
-
-    def from_labeled_storage(self, dataset_name: Optional[str] = None, labels: Optional[list] = None):
-        self._labeled = True
-        self._dataset_name = dataset_name
-        storage_path = self._filesystem.get_dataset_path('h', dataset_name)
-        storage = HdfStorage(storage_path, 'harmonics')
-        if labels is None:
-            labels = storage.get_dataset_list()
-
-        def storage_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            nonlocal labels
-
-            if fetch_mode == COUPLED_FETCH_MODE:
-                fetch_mode = RANDOM_FETCH_MODE
-                do_split_into_couples = True
-                labels = random.sample(labels, 2)
-            else:
-                do_split_into_couples = False
-
-            group_count = len(labels)
-            group_size = size//group_count
-            size = group_count*group_size
-
-            shape = self._config.frontend_shape
-
-            x = np.zeros([size, shape[0], shape[1]])
-            y = np.zeros([size])
-
-            index = 0
-            for group_i in range(group_count):
-                x[index:index+group_size] = storage.fetch_subset(
-                    labels[group_i], start_index, group_size, mode=fetch_mode)
-                y[index:index+group_size] = group_i
-                index += group_size
-
-            if do_split_into_couples:
-                x = np.reshape(x, [2, -1, 2, shape[0], shape[1]])
-                x = np.transpose(x, [1, 0, 2, 3, 4])
-                x = np.reshape(x, [-1, shape[0], shape[1]])
-                y = np.reshape(y, [2, -1, 2])
-                y = np.transpose(y, [1, 0, 2])
-                y = np.reshape(y, [-1])
-            return x, y
-
-        self.attach_handler(storage_handler)
-        return self
-
-    def from_unlabeled_storage(self, dataset_name: Optional[str] = None):
-        self._labeled = False
-        self._dataset_name = dataset_name
-        storage_path = self._filesystem.get_dataset_path('h', dataset_name)
-        storage = HdfStorage(storage_path, 'harmonics')
-
-        def storage_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            x, indices = storage.fetch_subset(
-                '', start_index, size, mode=fetch_mode, return_indices=True)
-            return x, np.asarray(indices)
-
-        self.attach_handler(storage_handler)
-        return self
-
-    def shuffle(self):
-        def shuffle_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            shape = self._config.frontend_shape
-
-            x, y = handler(size, start_index, fetch_mode)
-
-            group_size = 4
-            group_indices = np.arange(x.shape[0]//group_size)
-            np.random.shuffle(group_indices)
-            indices = convert_group_indices_to_item_indices(
-                group_indices, group_size)
-
-            x = x[indices]
-            y = y[indices]
-
-            return x, y
-
-        self.attach_handler(shuffle_handler)
-        return self
-
-    def cache(self, cache_size: Optional[int] = None):
-        if cache_size is None:
-            cache_size = self._config.cache_size
-        x_cache = None
-        y_cache = None
-        cache_index = 0
-
-        def cache_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            nonlocal cache_size, cache_index, x_cache, y_cache
-
-            batch_end_index = cache_index + size
-            if (x_cache is None) or (batch_end_index >= x_cache.shape[0]):
-                x_cache, y_cache = handler(cache_size, start_index, fetch_mode)
-                batch_end_index = size
-
-            x = x_cache[cache_index:batch_end_index]
-            y = y_cache[cache_index:batch_end_index]
-            cache_index = batch_end_index
-            return x, y
-
-        self.attach_handler(cache_handler)
-        return self
-
-    def augment(self):
-        if (self._labeled is None) or (self._labeled is None):
-            raise NotImplementedError()
-
-        storage_path = self._filesystem.get_dataset_path(
-            'r', self._dataset_name)
-        storage = HdfStorage(storage_path, 'raw')
-
-        def augment_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            x, y = handler(size, start_index, fetch_mode)
-
-            aug_size = int(self._config.aug_rate*len(x))
-
-            y_indices = range(len(y))
-            y_aug_indices = random.sample(y_indices, aug_size)
-            y_aug = y[y_aug_indices]
-
-            x_aug = storage.fetch_subset_from_indices("", y_aug)
-            x_aug = augmentation.apply_some_filters(
-                x_aug, self._config.framerate)
-
-            j = 0
-            for i in y_aug_indices:
-                x[i] = self._frontend.process(x_aug[j])
-                j += 1
-
-            return x, y
-
-        self.attach_handler(augment_handler)
-        return self
-
-    def merge(self, pipeline1: DatasetPipeline, pipeline2: DatasetPipeline):
-        def merge_handler(size: int, start_index: int, fetch_mode: str, handler: Callable):
-            x1, y1 = pipeline1.get_batch()
-            x2, y2 = pipeline2.get_batch()
-            x = np.concatenate([x1, x2], axis=0)
-            y = np.concatenate([y1, y2], axis=0)
-            return x, y
-
-        self.attach_handler(merge_handler)
-        self._is_finalized = True
-        return self
-
-    def with_size(self, size: int):
-        self._size = size
-        return self
-
-    def with_start_index(self, start_index: int):
-        self._start_index = start_index
-        return self
-
-    def with_fetch_mode(self, fetch_mode: str):
-        self._fetch_mode = fetch_mode
-        return self
-
-    def build(self):
-        return DatasetPipeline(self._last_pipe, self._start_index, self._size, self._fetch_mode)
+        return x[indices], y[indices]
 
 
-class DatasetPipelineFactory():
-    def __init__(self, config, filesystem: FilesystemProvider, frontend: FrontendProcessorBase) -> None:
-        self._config = config
-        self._filesystem = filesystem
-        self._frontend = frontend
+class Merge(TransformPipe):
+    def __init__(self, second_pipe: Pipe) -> None:
+        super().__init__()
+        self.second_pipe = second_pipe
 
-    def get_builder(self) -> DatasetPipelineBuilder:
-        return DatasetPipelineBuilder(self._config, self._filesystem, self._frontend)
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        x2, y2 = self.second_pipe.get_batch()
+
+        x = np.concatenate([x, x2], axis=0)
+        y = np.concatenate([y, y2], axis=0)
+        return x, y

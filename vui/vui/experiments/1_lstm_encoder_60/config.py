@@ -25,13 +25,7 @@ embedding_size = 60
 classifier_name = "classifier"
 
 # Datasets
-dataset_index = 1
-dataset_labels = ["u_ru_Shtooka", "s_en_SpeechCommands", "u_ru_CommonVoice", "t_ru_Shtooka",
-                  "s_en_WikimediaCommons", "s_en_ShtookaEmmanuel", "s_en_ShtookaJudith", "s_en_ShtookaMary",
-                  "s_en_ShtookaMaryNum", "s_ru_ShtookaGulnara", "s_ru_ShtookaSakhno", "s_ru_ShtookaNonFree",
-                  "s_uk_ShtookaGalya", "s_uk_ShtookaSvitlana", "s_cz_ShtookaVeronika", "s_cz_ShtookaIvana",
-                  "s_be_ShtookaIgor", "s_be_ShtookaDasha", "s_be_ShtookaJulia", "t_mx_Mix"]
-dataset_label = dataset_labels[dataset_index]
+dataset_label = "s_en_SpeechCommands"
 cache_size = 2880
 aug_rate = 0.3
 

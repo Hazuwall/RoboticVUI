@@ -1,7 +1,6 @@
-from typing import Callable
 import tensorflow as tf
 from abc import ABC, abstractmethod, abstractproperty
-from vui.dataset.pipeline import COUPLED_FETCH_MODE, DatasetPipelineFactory
+import vui.dataset.pipeline as pipeline
 from vui.infrastructure.filesystem import FilesystemProvider
 from vui.model.abstract import AcousticModelBase
 from vui.model.metrics import AveragingTimer, Evaluator
@@ -23,20 +22,23 @@ class TrainerBase(ABC):
 
 
 class AcousticModelTrainer(TrainerBase):
-    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, dataset_pipeline_factory: DatasetPipelineFactory, evaluator: Evaluator) -> None:
+    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, evaluator: Evaluator) -> None:
         self._config = config
         self._filesystem = filesystem
         self._acoustic_model = acoustic_model
-        self._dataset_pipeline_factory = dataset_pipeline_factory
         self._evaluator = evaluator
 
         logs_path = filesystem.get_logs_dir()
         self._summary_writer = tf.summary.create_file_writer(logs_path)
 
-        self._validation_dataset = dataset_pipeline_factory.get_builder().from_labeled_storage(
-            "s_en_SpeechCommands").with_size(config.validation_size).with_fetch_mode(COUPLED_FETCH_MODE).build()
+        self._validation_dataset = self.create_validation_pipeline()
 
         self._timer = AveragingTimer()
+
+    def create_validation_pipeline(self):
+        storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
+        return pipeline.LabeledStorage(self._config.frontend_shape, storage,
+                                       batch_size=self._config.validation_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
 
     @property
     def model(self):
@@ -92,13 +94,6 @@ class AcousticModelTrainer(TrainerBase):
 
 
 class TrainerFactoryBase(ABC):
-    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, dataset_pipeline_factory: DatasetPipelineFactory, evaluator: Evaluator) -> None:
-        self._config = config
-        self._filesystem = filesystem
-        self._acoustic_model = acoustic_model
-        self._dataset_pipeline_factory = dataset_pipeline_factory
-        self._evaluator = evaluator
-
     @abstractmethod
     def get_trainer(self, stage: int) -> TrainerBase:
         pass

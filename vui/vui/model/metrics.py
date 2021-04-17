@@ -107,6 +107,8 @@ class Evaluator:
         correct_count = 0
         silence_count = 0
         unknown_count = 0
+        correct_weight = 0
+        incorrect_weight = 0
         word_samples_iterator = iter(word_samples.values())
         first_word_samples = next(word_samples_iterator)
         dictor_count = len(first_word_samples)
@@ -116,15 +118,19 @@ class Evaluator:
             for expected_word in word_samples.keys():
                 for dictor_i, sample in enumerate(word_samples[expected_word]):
                     if dictor_i != ref_dictor_i:
-                        actual_word, _ = self._word_recognizer.recognize(
+                        actual_word, weight = self._word_recognizer.recognize(
                             sample.frames)
-                        correct_count += 1 if actual_word == expected_word else 0
+                        if actual_word == expected_word:
+                            correct_count += 1
+                            correct_weight += weight
+                        else:
+                            incorrect_weight += weight
                         silence_count += 1 if actual_word == self._config.silence_word else 0
                         unknown_count += 1 if actual_word == self._config.unknown_word else 0
                         total_count += 1
 
         self._ref_word_dictionary.force_load()
-        return np.true_divide(correct_count, total_count), np.true_divide(silence_count, total_count), np.true_divide(unknown_count, total_count)
+        return np.true_divide(correct_count, total_count), np.true_divide(silence_count, total_count), np.true_divide(unknown_count, total_count), np.true_divide(total_count - unknown_count - silence_count, total_count), np.true_divide(correct_weight, correct_count), np.true_divide(incorrect_weight, total_count - correct_count)
 
     def _get_word_samples(self, word_paths: dict) -> dict:
         word_embeddings = {}

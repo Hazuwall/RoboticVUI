@@ -87,10 +87,13 @@ class AcousticModelTrainer(TrainerBase):
 
     def _run_test(self):
         with tf.name_scope("test"):
-            test_accuracy, silence_slice, unknown_slice = self._evaluator.evaluate()
+            test_accuracy, silence_slice, unknown_slice, wrong_word_slice, correct_weight, incorrect_weight = self._evaluator.evaluate()
             tf.summary.scalar("accuracy", test_accuracy)
             tf.summary.scalar("silence_slice", silence_slice)
             tf.summary.scalar("unknown_slice", unknown_slice)
+            tf.summary.scalar("wrong_word_slice", wrong_word_slice)
+            tf.summary.scalar("correct_weight", correct_weight)
+            tf.summary.scalar("incorrect_weight", incorrect_weight)
 
 
 class TrainerFactoryBase(ABC):

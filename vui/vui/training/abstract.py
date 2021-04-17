@@ -39,7 +39,7 @@ class AcousticModelTrainer(TrainerBase):
         storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
         x = pipeline.LabeledStorage(self._config.frontend_shape, storage,
                                     batch_size=self._config.validation_size, fetch_mode=pipeline.COUPLED_FETCH_MODE,
-                                    use_all_classes_per_batch=True)
+                                    use_max_classes_per_batch=True)
         return pipeline.Shuffle(group_size=4)(x)
 
     @property

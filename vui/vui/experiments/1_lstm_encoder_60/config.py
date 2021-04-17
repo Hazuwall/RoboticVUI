@@ -1,7 +1,7 @@
 """ ============================ Common ===================================="""
 # Training
 batch_size = 72
-validation_size = 1120
+validation_size = 1020
 test_size = 0
 stages = 1
 

@@ -81,34 +81,37 @@ class TransformPipe(Pipe):
 
 class LabeledStorage(SourcePipe):
     def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int, start_index: int = 0,
-                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_all_classes_per_batch: bool = False) -> None:
+                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_max_classes_per_batch: bool = False) -> None:
         super().__init__(output_shape)
 
         labels = storage.get_dataset_list() if labels is None else labels
         if fetch_mode == COUPLED_FETCH_MODE:
             self.inner_fetch_mode = RANDOM_FETCH_MODE
+            self.max_classes_per_batch = len(labels) if len(
+                labels) % 2 == 0 else len(labels) - 1
             self.classes_per_batch = self.get_greatest_devisor(
-                number=batch_size//2, max_divisor=len(labels))
+                number=batch_size//2, max_divisor=self.max_classes_per_batch)
         else:
             self.inner_fetch_mode = fetch_mode
+            self.max_classes_per_batch = len(labels)
             self.classes_per_batch = self.get_greatest_devisor(
-                number=batch_size, max_divisor=len(labels))
+                number=batch_size, max_divisor=self.max_classes_per_batch)
 
         self.storage = storage
         self.labels = labels
         self.batch_size = batch_size
         self.start_index = start_index
         self.fetch_mode = fetch_mode
-        self.use_all_classes_per_batch = use_all_classes_per_batch
+        self.use_max_classes_per_batch = use_max_classes_per_batch
         self.validate()
 
     def validate(self):
-        if self.use_all_classes_per_batch and (self.classes_per_batch != len(self.labels)):
+        if self.use_max_classes_per_batch and (self.classes_per_batch != self.max_classes_per_batch):
             raise ValueError("{} of {} classes are used per batch. Try to change batch size.".format(
-                self.classes_per_batch, len(self.labels)))
+                self.classes_per_batch, self.max_classes_per_batch))
 
-        if (self.fetch_mode == COUPLED_FETCH_MODE) and (self.classes_per_batch < 2):
-            raise ValueError("{} classes are used per batch. The coupled fetch mode require >= 2 classes. Try to change batch size.".format(
+        if (self.fetch_mode == COUPLED_FETCH_MODE) and (self.classes_per_batch % 2 != 0):
+            raise ValueError("{} classes are used per batch. The coupled fetch mode require even class count.".format(
                 self.classes_per_batch))
 
         if (self.fetch_mode == COUPLED_FETCH_MODE) and (self.batch_size % 4 != 0):

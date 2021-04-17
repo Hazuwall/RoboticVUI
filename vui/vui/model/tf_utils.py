@@ -13,8 +13,7 @@ def cos_similarity(x: tf.Tensor, y: tf.Tensor, axis=0, do_normalize=False):
 
 
 def cos_similarity_triplet_loss(codes: tf.Tensor, max_positive_similarity: float = 1, min_negative_similarity: float = -1):
-    coupled_codes = tf.reshape(codes, (-1, 2, codes.shape[1]))
-    anchor, positive = tf.unstack(coupled_codes, axis=1)
+    anchor, positive = tf.split(codes, 2, axis=0)
     pos_distrib = cos_similarity(anchor, positive, axis=1)
     pos_cost = tf.reduce_mean(tf.minimum(
         max_positive_similarity, 1 - pos_distrib)**2)
@@ -24,7 +23,7 @@ def cos_similarity_triplet_loss(codes: tf.Tensor, max_positive_similarity: float
     neg_distrib = cos_similarity(anchor, negative, axis=1)
 
     anchor = codes
-    negative = tf.roll(codes, 2, axis=0)
+    negative = tf.roll(codes, 1, axis=0)
     neg_distrib = tf.concat(
         [neg_distrib, cos_similarity(anchor, negative, axis=1)], axis=0)
     neg_cost = tf.reduce_mean(tf.maximum(
@@ -44,8 +43,7 @@ def cos_similarity_triplet_summary(cost: float, metrics: list) -> None:
 
 
 def coupled_cos_similarity_accuracy(codes):
-    codes = tf.reshape(codes, (-1, 2, codes.shape[1]))
-    anchor, positive = tf.unstack(codes, axis=1)
+    anchor, positive = tf.split(codes, 2, axis=0)
     anchor = tf.expand_dims(anchor, axis=1)
     positive = tf.expand_dims(positive, axis=0)
     similarity = cos_similarity(anchor, positive, axis=2)

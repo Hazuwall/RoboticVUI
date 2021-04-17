@@ -49,26 +49,36 @@ class HdfStorage:
     def fetch_subset(self, label: str, start: int, size: int, mode=RANDOM_FETCH_MODE, return_indices=False):
         """Fetch a subset from the dataset.
         Returns:
-            If mode=RANDOM, a random subset of the given size from the dataset
+            If mode=RANDOM_FETCH_MODE, a random subset of the given size from the dataset
             skipping specified number of items
-            If mode=ROW, a subset of items in a row"""
+            If mode=ROW_FETCH_MODE, a subset of items in a row
+            If mode=COUPLED_FETCH_MODE, a subset 4-element series."""
         with h5py.File(self.path, 'r') as f:
             dset = f[self.group_label + label]
             if mode == ROW_FETCH_MODE:
                 X = dset[start:start+size]
                 indices = range(start, start+size)
+
+            elif mode == COUPLED_FETCH_MODE:
+                group_size = 4
+                all_allowed_group_indices = range(
+                    math.ceil(start/group_size), len(dset)//group_size)
+                group_indices = random.sample(
+                    all_allowed_group_indices, size//group_size)
+                group_indices = sorted(group_indices)
+                indices = expand_group_indices_to_item_indices(
+                    group_indices, group_size)
+                X = dset[indices]
+
+            elif mode == RANDOM_FETCH_MODE:
+                all_allowed_indices = range(start, len(dset))
+                indices = random.sample(all_allowed_indices, size)
+                indices = sorted(indices)
+                X = dset[indices]
+
             else:
-                if mode == COUPLED_FETCH_MODE:
-                    group_size = 4
-                    group_indices = sorted(random.sample(
-                        range(math.ceil(start/group_size), len(dset)//group_size), size//group_size))
-                    indices = expand_group_indices_to_item_indices(
-                        group_indices, group_size)
-                    X = dset[indices]
-                else:
-                    indices = sorted(random.sample(
-                        range(start, len(dset)), size))
-                    X = dset[indices]
+                raise NotImplementedError()
+
             X = np.nan_to_num(X)
             if return_indices:
                 return X, indices

@@ -8,14 +8,6 @@ from vui.dataset import augmentation
 import vui.infrastructure.locator as locator
 
 
-def expand_group_indices_to_item_indices(group_indices: list, group_size: int) -> list:
-    indices = []
-    for i in group_indices:
-        for j in range(group_size):
-            indices.append(i*group_size+j)
-    return indices
-
-
 def get_hdf_storage(type_letter: str, label: str) -> HdfStorage:
     mapping = {
         "r": "raw",
@@ -81,42 +73,33 @@ class TransformPipe(Pipe):
 
 class LabeledStorage(SourcePipe):
     def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int, start_index: int = 0,
-                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_all_classes_per_batch=False) -> None:
+                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_all_classes_per_batch: bool = False) -> None:
         super().__init__(output_shape)
 
         labels = storage.get_dataset_list() if labels is None else labels
         if fetch_mode == COUPLED_FETCH_MODE:
-            fetch_mode = RANDOM_FETCH_MODE
-            classes_per_batch = self.get_greatest_devisor(
+            self.inner_fetch_mode = RANDOM_FETCH_MODE
+            self.classes_per_batch = self.get_greatest_devisor(
                 number=batch_size//2, max_divisor=len(labels))
-            do_split_into_couples = True
         else:
-            classes_per_batch = self.get_greatest_devisor(
+            self.inner_fetch_mode = fetch_mode
+            self.classes_per_batch = self.get_greatest_devisor(
                 number=batch_size, max_divisor=len(labels))
-            do_split_into_couples = False
 
         self.storage = storage
         self.labels = labels
         self.batch_size = batch_size
-        self.classes_per_batch = classes_per_batch
         self.start_index = start_index
-        self.fetch_mode = fetch_mode
-        self.do_split_into_couples = do_split_into_couples
-        self.use_all_classes_per_batch = use_all_classes_per_batch
-        self.validate()
+        self.validate(fetch_mode, use_all_classes_per_batch)
 
-    def validate(self):
-        if self.use_all_classes_per_batch and (self.classes_per_batch != len(self.labels)):
+    def validate(self, fetch_mode: str, use_all_classes_per_batch: bool):
+        if use_all_classes_per_batch and (self.classes_per_batch != len(self.labels)):
             raise ValueError("{} of {} classes are used per batch. Try to change batch size.".format(
                 self.classes_per_batch, len(self.labels)))
 
-        if self.do_split_into_couples and (self.classes_per_batch < 2):
+        if (fetch_mode == COUPLED_FETCH_MODE) and (self.classes_per_batch < 2):
             raise ValueError("{} classes are used per batch. The coupled fetch mode can not be used. Try to change batch size.".format(
                 self.classes_per_batch))
-
-        if self.do_split_into_couples and (self.batch_size % 4 != 0):
-            raise ValueError(
-                "A batch size = {} is not divisible by 4. The coupled fetch mode can not be used.".format(self.batch_size))
 
     def get_greatest_devisor(self, number: int, max_divisor: int):
         for divisor in range(max_divisor, 0, -1):
@@ -128,22 +111,16 @@ class LabeledStorage(SourcePipe):
         class_size = self.batch_size//self.classes_per_batch
         shape = self.output_shape
 
-        x = np.zeros([self.batch_size, shape[0], shape[1]])
-        y = np.zeros([self.batch_size])
+        x = np.zeros([class_size, self.classes_per_batch, shape[0], shape[1]])
+        y = np.zeros([class_size, self.classes_per_batch])
 
         for class_i, label in enumerate(class_labels):
-            index = class_i * class_size
-            x[index:index+class_size] = self.storage.fetch_subset(
-                label, self.start_index, class_size, mode=self.fetch_mode)
-            y[index:index+class_size] = class_i
+            x[:, class_i] = self.storage.fetch_subset(
+                label, self.start_index, class_size, mode=self.inner_fetch_mode)
+            y[:, class_i] = class_i
 
-        if self.do_split_into_couples:
-            x = np.reshape(x, [2, -1, 2, shape[0], shape[1]])
-            x = np.transpose(x, [1, 0, 2, 3, 4])
-            x = np.reshape(x, [-1, shape[0], shape[1]])
-            y = np.reshape(y, [2, -1, 2])
-            y = np.transpose(y, [1, 0, 2])
-            y = np.reshape(y, [-1])
+        x = np.reshape(x, [-1, shape[0], shape[1]])
+        y = np.reshape(y, [-1])
         return x, y
 
 
@@ -164,9 +141,21 @@ class UnlabeledStorage(SourcePipe):
                 "Batch size = {} is not divisible by 4.".format(self.batch_size))
 
     def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
-        x, indices = self.storage.fetch_subset(
+        x, y = self.storage.fetch_subset(
             '', self.start_index, self.batch_size, mode=self.fetch_mode, return_indices=True)
-        return x, np.asarray(indices)
+        y = np.asarray(y)
+
+        if self.fetch_mode == COUPLED_FETCH_MODE:
+            shape = self.output_shape
+
+            x = np.reshape(x, [-1, 2, shape[0], shape[1]])
+            x = np.transpose(x, [1, 0, 2, 3])
+            x = np.reshape(x, [-1, shape[0], shape[1]])
+
+            y = np.reshape(y, [-1, 2])
+            y = np.transpose(y, [1, 0])
+            y = np.reshape(y, [-1])
+        return x, y
 
 
 class UnlabeledAugment(TransformPipe):
@@ -223,15 +212,20 @@ class Cache(TransformPipe):
 
 
 class Shuffle(TransformPipe):
-    def __init__(self, group_size: int = 1) -> None:
-        super().__init__()
-        self.group_size = group_size
-
     def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        group_indices = np.arange(len(x)//self.group_size)
-        np.random.shuffle(group_indices)
-        indices = expand_group_indices_to_item_indices(
-            group_indices, self.group_size)
+        indices = range(len(x))
+        np.random.shuffle(indices)
+
+        return x[indices], y[indices]
+
+
+class CoupledShuffle(TransformPipe):
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        half = len(x)//2
+        indices1 = list(range(half))
+        np.random.shuffle(indices1)
+        indices2 = [index + half for index in indices1]
+        indices = indices1 + indices2
 
         return x[indices], y[indices]
 
@@ -244,6 +238,24 @@ class Merge(TransformPipe):
     def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         x2, y2 = self.second_pipe.get_batch()
 
-        x = np.concatenate([x, x2], axis=0)
-        y = np.concatenate([y, y2], axis=0)
+        x = np.concatenate([x, x2])
+        y = np.concatenate([y, y2])
+        return x, y
+
+
+class CoupledMerge(TransformPipe):
+    def __init__(self, second_pipe: Pipe) -> None:
+        super().__init__()
+        self.second_pipe = second_pipe
+
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        x2, y2 = self.second_pipe.get_batch()
+
+        x1_1, x1_2 = np.split(x, 2)
+        x2_1, x2_2 = np.split(x2, 2)
+        y1_1, y1_2 = np.split(y, 2)
+        y2_1, y2_2 = np.split(y2, 2)
+
+        x = np.concatenate([x1_1, x2_1, x1_2, x2_2])
+        y = np.concatenate([y1_1, y2_1, y1_2, y2_2])
         return x, y

@@ -111,9 +111,9 @@ class LabeledStorage(SourcePipe):
             raise ValueError("{} classes are used per batch. The coupled fetch mode require >= 2 classes. Try to change batch size.".format(
                 self.classes_per_batch))
 
-        if (self.fetch_mode == COUPLED_FETCH_MODE) and (self.batch_size % 2 != 0):
+        if (self.fetch_mode == COUPLED_FETCH_MODE) and (self.batch_size % 4 != 0):
             raise ValueError(
-                "A batch size = {} is not divisible by 2. The coupled fetch mode can not be used.".format(self.batch_size))
+                "A batch size = {} is not divisible by 4. The coupled fetch mode can not be used.".format(self.batch_size))
 
     def get_greatest_devisor(self, number: int, max_divisor: int):
         for divisor in range(max_divisor, 0, -1):

@@ -81,44 +81,57 @@ class TransformPipe(Pipe):
 
 class LabeledStorage(SourcePipe):
     def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int, start_index: int = 0,
-                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None) -> None:
+                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_all_classes_per_batch=False) -> None:
         super().__init__(output_shape)
 
         labels = storage.get_dataset_list() if labels is None else labels
         if fetch_mode == COUPLED_FETCH_MODE:
             fetch_mode = RANDOM_FETCH_MODE
+            classes_per_batch = self.get_greatest_devisor(
+                number=batch_size//2, max_divisor=len(labels))
             do_split_into_couples = True
-            labels = random.sample(labels, 2)
         else:
+            classes_per_batch = self.get_greatest_devisor(
+                number=batch_size, max_divisor=len(labels))
             do_split_into_couples = False
 
         self.storage = storage
         self.labels = labels
         self.batch_size = batch_size
+        self.classes_per_batch = classes_per_batch
         self.start_index = start_index
         self.fetch_mode = fetch_mode
         self.do_split_into_couples = do_split_into_couples
+        self.use_all_classes_per_batch = use_all_classes_per_batch
         self.validate()
 
     def validate(self):
-        if self.batch_size % len(self.labels) != 0:
-            raise ValueError("Batch size = {} is not divisible by class count = {}.".format(
-                self.batch_size, len(self.labels)))
+        if self.use_all_classes_per_batch and (self.classes_per_batch != len(self.labels)):
+            raise ValueError("{} of {} classes are used per batch. Try to change batch size.".format(
+                self.classes_per_batch, len(self.labels)))
+
+        if self.do_split_into_couples and (self.classes_per_batch < 2):
+            raise ValueError("{} classes are used per batch. The coupled fetch mode can not be used. Try to change batch size.".format(
+                self.classes_per_batch))
 
         if self.do_split_into_couples and (self.batch_size % 4 != 0):
             raise ValueError(
-                "Batch size = {} is not divisible by 4.".format(self.batch_size))
+                "A batch size = {} is not divisible by 4. The coupled fetch mode can not be used.".format(self.batch_size))
+
+    def get_greatest_devisor(self, number: int, max_divisor: int):
+        for divisor in range(max_divisor, 0, -1):
+            if number % divisor == 0:
+                return divisor
 
     def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
-        class_count = len(self.labels)
-        class_size = self.batch_size//class_count
-
+        class_labels = random.sample(self.labels, self.classes_per_batch)
+        class_size = self.batch_size//self.classes_per_batch
         shape = self.output_shape
 
         x = np.zeros([self.batch_size, shape[0], shape[1]])
         y = np.zeros([self.batch_size])
 
-        for class_i, label in enumerate(self.labels):
+        for class_i, label in enumerate(class_labels):
             index = class_i * class_size
             x[index:index+class_size] = self.storage.fetch_subset(
                 label, self.start_index, class_size, mode=self.fetch_mode)

@@ -130,7 +130,8 @@ class Evaluator:
                         total_count += 1
 
         self._ref_word_dictionary.force_load()
-        return np.true_divide(correct_count, total_count), np.true_divide(silence_count, total_count), np.true_divide(unknown_count, total_count), np.true_divide(total_count - unknown_count - silence_count, total_count), np.true_divide(correct_weight, correct_count), np.true_divide(incorrect_weight, total_count - correct_count)
+        wrong_word_count = total_count - correct_count - unknown_count - silence_count
+        return np.true_divide(correct_count, total_count), np.true_divide(silence_count, total_count), np.true_divide(unknown_count, total_count), np.true_divide(wrong_word_count, total_count), np.true_divide(correct_weight, correct_count), np.true_divide(incorrect_weight, total_count - correct_count)
 
     def _get_word_samples(self, word_paths: dict) -> dict:
         word_embeddings = {}

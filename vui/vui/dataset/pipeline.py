@@ -81,27 +81,24 @@ class TransformPipe(Pipe):
 
 class LabeledStorage(SourcePipe):
     def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int, start_index: int = 0,
-                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_all_classes_per_batch=False) -> None:
+                 fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_all_classes_per_batch: bool = False) -> None:
         super().__init__(output_shape)
 
         labels = storage.get_dataset_list() if labels is None else labels
         if fetch_mode == COUPLED_FETCH_MODE:
-            fetch_mode = RANDOM_FETCH_MODE
-            classes_per_batch = self.get_greatest_devisor(
+            self.inner_fetch_mode = RANDOM_FETCH_MODE
+            self.classes_per_batch = self.get_greatest_devisor(
                 number=batch_size//2, max_divisor=len(labels))
-            do_split_into_couples = True
         else:
-            classes_per_batch = self.get_greatest_devisor(
+            self.inner_fetch_mode = fetch_mode
+            self.classes_per_batch = self.get_greatest_devisor(
                 number=batch_size, max_divisor=len(labels))
-            do_split_into_couples = False
 
         self.storage = storage
         self.labels = labels
         self.batch_size = batch_size
-        self.classes_per_batch = classes_per_batch
         self.start_index = start_index
         self.fetch_mode = fetch_mode
-        self.do_split_into_couples = do_split_into_couples
         self.use_all_classes_per_batch = use_all_classes_per_batch
         self.validate()
 
@@ -110,13 +107,13 @@ class LabeledStorage(SourcePipe):
             raise ValueError("{} of {} classes are used per batch. Try to change batch size.".format(
                 self.classes_per_batch, len(self.labels)))
 
-        if self.do_split_into_couples and (self.classes_per_batch < 2):
-            raise ValueError("{} classes are used per batch. The coupled fetch mode can not be used. Try to change batch size.".format(
+        if (self.fetch_mode == COUPLED_FETCH_MODE) and (self.classes_per_batch < 2):
+            raise ValueError("{} classes are used per batch. The coupled fetch mode require >= 2 classes. Try to change batch size.".format(
                 self.classes_per_batch))
 
-        if self.do_split_into_couples and (self.batch_size % 4 != 0):
+        if (self.fetch_mode == COUPLED_FETCH_MODE) and (self.batch_size % 2 != 0):
             raise ValueError(
-                "A batch size = {} is not divisible by 4. The coupled fetch mode can not be used.".format(self.batch_size))
+                "A batch size = {} is not divisible by 2. The coupled fetch mode can not be used.".format(self.batch_size))
 
     def get_greatest_devisor(self, number: int, max_divisor: int):
         for divisor in range(max_divisor, 0, -1):
@@ -124,26 +121,29 @@ class LabeledStorage(SourcePipe):
                 return divisor
 
     def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
-        class_labels = random.sample(self.labels, self.classes_per_batch)
+        class_labels = sorted(random.sample(
+            self.labels, self.classes_per_batch))
         class_size = self.batch_size//self.classes_per_batch
         shape = self.output_shape
 
-        x = np.zeros([self.batch_size, shape[0], shape[1]])
-        y = np.zeros([self.batch_size])
+        x = np.zeros(
+            [self.classes_per_batch, class_size, shape[0], shape[1]])
+        y = np.zeros([self.classes_per_batch, class_size])
 
         for class_i, label in enumerate(class_labels):
-            index = class_i * class_size
-            x[index:index+class_size] = self.storage.fetch_subset(
-                label, self.start_index, class_size, mode=self.fetch_mode)
-            y[index:index+class_size] = class_i
+            x[class_i, :] = self.storage.fetch_subset(
+                label, self.start_index, class_size, mode=self.inner_fetch_mode)
+            y[class_i, :] = class_i
 
-        if self.do_split_into_couples:
-            x = np.reshape(x, [2, -1, 2, shape[0], shape[1]])
+        if self.fetch_mode == COUPLED_FETCH_MODE:
+            x = np.reshape(
+                x, [self.classes_per_batch, -1, 2, shape[0], shape[1]])
             x = np.transpose(x, [1, 0, 2, 3, 4])
-            x = np.reshape(x, [-1, shape[0], shape[1]])
-            y = np.reshape(y, [2, -1, 2])
+            y = np.reshape(y, [self.classes_per_batch, -1, 2])
             y = np.transpose(y, [1, 0, 2])
-            y = np.reshape(y, [-1])
+
+        x = np.reshape(x, [-1, shape[0], shape[1]])
+        y = np.reshape(y, [-1])
         return x, y
 
 

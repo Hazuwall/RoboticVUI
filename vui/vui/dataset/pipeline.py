@@ -19,8 +19,8 @@ def expand_group_indices_to_item_indices(group_indices: list, group_size: int) -
 def get_hdf_storage(type_letter: str, label: str) -> HdfStorage:
     mapping = {
         "r": "raw",
-        "h": "harmonics",
-        "e": "embeddings"
+        "h": "data",
+        "e": "data"
     }
 
     path = locator.get_filesystem_provider().get_dataset_path(type_letter, label)

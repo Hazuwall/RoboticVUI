@@ -24,7 +24,7 @@ class AcousticModel(AcousticModelBase):
                 x = tf.keras.layers.BatchNormalization()(x)
                 x = tf.keras.layers.ReLU()(x)
                 x = tf.keras.layers.MaxPooling1D(2)(x)
-                return tf.keras.layers.Dropout(0.3)(x)
+                return tf.keras.layers.Dropout(0.5)(x)
 
             def dense_block(x, units):
                 x = tf.keras.layers.Dense(units, use_bias=False)(x)

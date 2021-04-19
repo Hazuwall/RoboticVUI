@@ -40,7 +40,7 @@ class AcousticModelTrainer(TrainerBase):
         x = pipeline.LabeledStorage(self._config.frontend_shape, storage,
                                     batch_size=self._config.validation_size, fetch_mode=pipeline.COUPLED_FETCH_MODE,
                                     use_max_classes_per_batch=True)
-        return pipeline.Shuffle(group_size=4)(x)
+        return pipeline.Shuffle(patch_size=4)(x)
 
     @property
     def model(self):

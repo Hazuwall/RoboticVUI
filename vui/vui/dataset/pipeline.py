@@ -3,16 +3,16 @@ import random
 from typing import Optional, Tuple
 from vui.frontend.abstract import FrontendProcessorBase
 import numpy as np
-from vui.dataset.storage import HdfStorage, COUPLED_FETCH_MODE, RANDOM_FETCH_MODE
+from vui.dataset.storage import Storage, HdfStorage, COUPLED_FETCH_MODE, RANDOM_FETCH_MODE, PATCH_FETCH_MODE
 from vui.dataset import augmentation
 import vui.infrastructure.locator as locator
 
 
-def expand_group_indices_to_item_indices(group_indices: list, group_size: int) -> list:
+def expand_patch_indices_to_item_indices(patch_indices: list, patch_size: int) -> list:
     indices = []
-    for i in group_indices:
-        for j in range(group_size):
-            indices.append(i*group_size+j)
+    for i in patch_indices:
+        for j in range(patch_size):
+            indices.append(i*patch_size+j)
     return indices
 
 
@@ -74,7 +74,7 @@ class TransformPipe(Pipe):
 
 
 class LabeledStorage(SourcePipe):
-    def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int, start_index: int = 0,
+    def __init__(self, output_shape: list, storage: Storage, batch_size: int, start_index: int = 0,
                  fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_max_classes_per_batch: bool = False) -> None:
         super().__init__(output_shape)
 
@@ -145,7 +145,7 @@ class LabeledStorage(SourcePipe):
 
 
 class UnlabeledStorage(SourcePipe):
-    def __init__(self, output_shape: list, storage: HdfStorage, batch_size: int,
+    def __init__(self, output_shape: list, storage: Storage, batch_size: int,
                  start_index: int = 0, fetch_mode: str = RANDOM_FETCH_MODE) -> None:
         super().__init__(output_shape)
 
@@ -153,6 +153,7 @@ class UnlabeledStorage(SourcePipe):
         self.batch_size = batch_size
         self.start_index = start_index
         self.fetch_mode = fetch_mode
+        self.inner_fetch_mode = PATCH_FETCH_MODE if fetch_mode == COUPLED_FETCH_MODE else fetch_mode
         self.validate()
 
     def validate(self):
@@ -162,12 +163,12 @@ class UnlabeledStorage(SourcePipe):
 
     def get_batch(self) -> Tuple[np.ndarray, np.ndarray]:
         x, indices = self.storage.fetch_subset(
-            '', self.start_index, self.batch_size, mode=self.fetch_mode, return_indices=True)
+            '', self.start_index, self.batch_size, mode=self.inner_fetch_mode, return_indices=True, patch_size=4)
         return x, np.asarray(indices)
 
 
 class UnlabeledAugment(TransformPipe):
-    def __init__(self, storage: HdfStorage, frontend: FrontendProcessorBase, rate: float, framerate: float) -> None:
+    def __init__(self, storage: Storage, frontend: FrontendProcessorBase, rate: float, framerate: float) -> None:
         super().__init__()
         self.storage = storage
         self.rate = rate
@@ -217,15 +218,15 @@ class Cache(TransformPipe):
 
 
 class Shuffle(TransformPipe):
-    def __init__(self, group_size: int = 1) -> None:
+    def __init__(self, patch_size: int = 1) -> None:
         super().__init__()
-        self.group_size = group_size
+        self.patch_size = patch_size
 
     def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        group_indices = np.arange(len(x)//self.group_size)
+        group_indices = np.arange(len(x)//self.patch_size)
         np.random.shuffle(group_indices)
-        indices = expand_group_indices_to_item_indices(
-            group_indices, self.group_size)
+        indices = expand_patch_indices_to_item_indices(
+            group_indices, self.patch_size)
 
         return x[indices], y[indices]
 

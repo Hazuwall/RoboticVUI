@@ -55,7 +55,7 @@ class Trainer(AcousticModelTrainer):
         storage = pipeline.get_hdf_storage('h', "t_mx_Mix")
         z = pipeline.UnlabeledStorage(self._config.frontend_shape, storage,
                                       batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
-        z = pipeline.Shuffle(group_size=4)(z)
+        z = pipeline.Shuffle(patch_size=4)(z)
         z = pipeline.Cache(self._config.batch_size)(z)
 
         return pipeline.Merge(z)(x)

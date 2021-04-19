@@ -17,6 +17,7 @@ def main():
         'r', "s_en_SpeechCommands").get_dataset_list()
     for label in labels:
         cache("s_en_SpeechCommands", label)
+        status("✓ - {}".format(label))
 
     status("Finished!")
 
@@ -33,19 +34,11 @@ def cache(dataset_name: str, label: str = ""):
                                       shape=(
                                           length, config.frontend_shape[0], config.frontend_shape[1]),
                                       compression="lzf")
-            for i in range(length):
-                dset2[i] = frontend.process(dset1[i])
-                progress(label, i+1, length)
+            dset2[:] = frontend.process(dset1)
 
 
 def status(text: str):
     print(colored(text, 'green'))
-
-
-def progress(label: str, step: int, total: int):
-    if (step % 100 == 0) or step == total:
-        text = "[{}]: {}/{}".format(label, step, total)
-        print(colored(text, "yellow"))
 
 
 if __name__ == "__main__":

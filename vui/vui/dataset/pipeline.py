@@ -185,10 +185,7 @@ class UnlabeledAugment(TransformPipe):
         x_aug = augmentation.apply_some_filters(
             x_aug, self.framerate)
 
-        j = 0
-        for i in y_aug_indices:
-            x[i] = self.frontend.process(x_aug[j])
-            j += 1
+        x[y_aug_indices] = self.frontend.process(x_aug)
 
         return x, y
 

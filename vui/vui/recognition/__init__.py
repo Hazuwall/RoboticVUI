@@ -2,20 +2,19 @@ import numpy as np
 import pyaudio
 import time
 from typing import Callable, Optional, Tuple
-import vui.frontend.dsp as dsp
 from vui.model.abstract import ClassifierBase
 from vui.model.services import FramesToEmbeddingService
 
 
 class WordRecognizer():
-    def __init__(self, config, frames_to_embedding_service: FramesToEmbeddingService, classifier: ClassifierBase):
+    def __init__(self, config, f2e_service: FramesToEmbeddingService, classifier: ClassifierBase):
         self.config = config
-        self.frames_to_embedding_service = frames_to_embedding_service
+        self.f2e_service = f2e_service
         self.classifier = classifier
 
     def recognize(self, frames: np.ndarray) -> Tuple[str, float]:
         weight = 0
-        embedding = self.frames_to_embedding_service.encode(frames)
+        embedding = self.f2e_service.encode(frames)
         logits = self.classifier.classify(embedding)
 
         best_fragment_index = np.argmax(np.max(logits, axis=1), axis=0)

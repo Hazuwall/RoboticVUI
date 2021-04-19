@@ -7,12 +7,7 @@ class FrontendProcessor(FrontendProcessorBase):
     def __init__(self, config):
         super(FrontendProcessor, self).__init__(config)
 
-    def process(self, frames):
-        if len(frames) < self._config.framerate:
-            frames = np.pad(frames, (0, self._config.framerate-len(frames)))
-        else:
-            frames = frames[:self._config.framerate]
-
+    def process_core(self, frames):
         spectrogram = dsp.make_spectrogram(
             frames, seg_length=self._config.seg_length, step_count=self._config.spectrums_per_sec, keep_phase=False)
 

@@ -27,7 +27,7 @@ def cache(dataset_name: str, label: str = ""):
 
     with h5py.File(raw_dataset_path, 'r') as f1:
         with h5py.File(harmonics_dataset_path, 'a') as f2:
-            dset1 = f1["raw/" + label]
+            dset1 = f1["data/" + label]
             length = len(dset1)
             dset2 = f2.create_dataset("data/" + label, dtype="float32",
                                       shape=(

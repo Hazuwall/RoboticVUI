@@ -17,7 +17,7 @@ def expand_group_indices_to_item_indices(group_indices: list, group_size: int) -
 
 
 class HdfStorage:
-    def __init__(self, path, group_label):
+    def __init__(self, path, group_label="data"):
         self.path = path
         self.group_label = group_label + '/' if group_label else ''
 

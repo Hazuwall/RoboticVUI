@@ -16,15 +16,9 @@ def expand_group_indices_to_item_indices(group_indices: list, group_size: int) -
     return indices
 
 
-def get_hdf_storage(type_letter: str, label: str) -> HdfStorage:
-    mapping = {
-        "r": "raw",
-        "h": "data",
-        "e": "data"
-    }
-
-    path = locator.get_filesystem_provider().get_dataset_path(type_letter, label)
-    return HdfStorage(path, mapping[type_letter])
+def get_hdf_storage(type_letter: str, dataset_name: str) -> HdfStorage:
+    path = locator.get_filesystem_provider().get_dataset_path(type_letter, dataset_name)
+    return HdfStorage(path)
 
 
 class Pipe(ABC):

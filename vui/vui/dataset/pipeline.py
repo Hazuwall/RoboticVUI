@@ -3,7 +3,7 @@ import random
 from typing import Optional, Tuple
 from vui.frontend.abstract import FrontendProcessorBase
 import numpy as np
-from vui.dataset.storage import Storage, HdfStorage, COUPLED_FETCH_MODE, RANDOM_FETCH_MODE, PATCH_FETCH_MODE
+from vui.dataset.storage import Storage, HdfStorage, WavFolderStorage, COUPLED_FETCH_MODE, RANDOM_FETCH_MODE, PATCH_FETCH_MODE
 from vui.dataset import augmentation
 import vui.infrastructure.locator as locator
 

@@ -54,26 +54,6 @@ class FilesystemProvider:
     def get_dataset_path(self, type_letter: str, label: str, extension: str = "") -> str:
         return self.config.datasets_dir + label + '_' + type_letter + extension
 
-    def get_reference_word_paths(self) -> dict:
-        dir_path = self.config.ref_words_dir
-        file_list = os.listdir(dir_path)
-        ref_words = {}
-        for filename in file_list:
-            word = filename[:-4]
-            file_path = os.path.join(dir_path, filename)
-            ref_words[word] = file_path
-        return ref_words
-
-    def get_test_word_paths(self) -> dict:
-        dir_path = self.config.test_words_dir
-        words = os.listdir(dir_path)
-        word_paths = {}
-        for word in words:
-            word_dir = os.path.join(dir_path, word)
-            word_paths[word] = [os.path.join(
-                word_dir, file) for file in os.listdir(word_dir)]
-        return word_paths
-
     def clear_experiment(self) -> None:
         dir = self.get_experiment_dir()
         shutil.rmtree(dir, ignore_errors=True)

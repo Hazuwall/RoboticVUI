@@ -134,7 +134,7 @@ class WavFolderStorage(Storage):
             self.cache[label] = frames_array
 
     def get_dataset_list(self) -> list:
-        return self.cache.keys()
+        return list(self.cache.keys())
 
     def fetch_subset(self, label: str, start: int, size: int, mode: str = RANDOM_FETCH_MODE,
                      return_indices: bool = False, patch_size: int = 2):

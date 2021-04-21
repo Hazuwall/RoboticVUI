@@ -51,10 +51,8 @@ class FilesystemProvider:
         prefix_length = len(self.config.checkpoint_prefix)
         return int(filename[prefix_length:])
 
-    def get_dataset_path(self, type_letter: str, label: Optional[str] = None) -> str:
-        if label is None:
-            label = self.config.dataset_label
-        return self.config.datasets_dir + label + '_' + type_letter + ".hdf5"
+    def get_dataset_path(self, type_letter: str, label: str, extension: str = "") -> str:
+        return self.config.datasets_dir + label + '_' + type_letter + extension
 
     def get_reference_word_paths(self) -> dict:
         dir_path = self.config.ref_words_dir

@@ -17,8 +17,15 @@ def expand_patch_indices_to_item_indices(patch_indices: list, patch_size: int) -
 
 
 def get_hdf_storage(type_letter: str, dataset_name: str) -> HdfStorage:
-    path = locator.get_filesystem_provider().get_dataset_path(type_letter, dataset_name)
+    path = locator.get_filesystem_provider().get_dataset_path(
+        type_letter, dataset_name, ".hdf5")
     return HdfStorage(path)
+
+
+def get_wav_folder_storage(dataset_name: str) -> WavFolderStorage:
+    path = locator.get_filesystem_provider().get_dataset_path(
+        "r", dataset_name)
+    return WavFolderStorage(path)
 
 
 class Pipe(ABC):

@@ -25,7 +25,6 @@ embedding_size = 60
 classifier_name = "classifier"
 
 # Datasets
-dataset_label = "s_en_SpeechCommands"
 cache_size = 1440
 aug_rate = 0.3
 

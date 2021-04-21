@@ -22,7 +22,7 @@
         {
             "label": "Train",
             "type": "shell",
-            "command": "python scripts/train.py",
+            "command": "python scripts/train.py --stage=${input:stage}",
             "presentation": {
                 "reveal": "always",
                 "focus": true,
@@ -41,5 +41,13 @@
                 "showReuseMessage": true
             }
         }
+    ],
+    "inputs": [
+        {
+            "id": "stage",
+            "description": "Training stage:",
+            "default": "0",
+            "type": "promptString"
+        },
     ]
 }

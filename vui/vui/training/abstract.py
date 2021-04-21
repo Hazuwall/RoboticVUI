@@ -37,9 +37,9 @@ class AcousticModelTrainer(TrainerBase):
 
     def create_validation_pipeline(self):
         storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
-        x = pipeline.LabeledStorage(self._config.frontend_shape, storage,
-                                    batch_size=self._config.validation_size, fetch_mode=pipeline.COUPLED_FETCH_MODE,
-                                    use_max_classes_per_batch=True)
+        x = pipeline.LabeledSource(self._config.frontend_shape, storage,
+                                   batch_size=self._config.validation_size, fetch_mode=pipeline.COUPLED_FETCH_MODE,
+                                   use_max_classes_per_batch=True)
         return pipeline.Shuffle(patch_size=4)(x)
 
     @property

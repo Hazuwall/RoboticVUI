@@ -80,7 +80,7 @@ class TransformPipe(Pipe):
         return self
 
 
-class LabeledStorage(SourcePipe):
+class LabeledSource(SourcePipe):
     def __init__(self, output_shape: list, storage: Storage, batch_size: int, start_index: int = 0,
                  fetch_mode: str = RANDOM_FETCH_MODE, labels: Optional[list] = None, use_max_classes_per_batch: bool = False) -> None:
         super().__init__(output_shape)
@@ -151,7 +151,7 @@ class LabeledStorage(SourcePipe):
         return x, y
 
 
-class UnlabeledStorage(SourcePipe):
+class UnlabeledSource(SourcePipe):
     def __init__(self, output_shape: list, storage: Storage, batch_size: int,
                  start_index: int = 0, fetch_mode: str = RANDOM_FETCH_MODE) -> None:
         super().__init__(output_shape)

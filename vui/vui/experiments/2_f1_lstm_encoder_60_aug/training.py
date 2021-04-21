@@ -48,14 +48,14 @@ class Trainer(AcousticModelTrainer):
 
     def create_training_pipeline(self):
         storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
-        x = pipeline.LabeledStorage(self._config.frontend_shape, storage,
-                                    batch_size=self._config.cache_size*5, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+        x = pipeline.LabeledSource(self._config.frontend_shape, storage,
+                                   batch_size=self._config.cache_size*5, fetch_mode=pipeline.COUPLED_FETCH_MODE)
         x = pipeline.Shuffle(patch_size=4)(x)
         x = pipeline.Cache(self._config.batch_size // 3)(x)
 
         storage = pipeline.get_hdf_storage('h', "t_mx_Mix")
-        z = pipeline.UnlabeledStorage(self._config.frontend_shape, storage,
-                                      batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+        z = pipeline.UnlabeledSource(self._config.frontend_shape, storage,
+                                     batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
         z = pipeline.Shuffle(patch_size=4)(z)
         storage = pipeline.get_hdf_storage('r', "t_mx_Mix")
         z = pipeline.UnlabeledAugment(

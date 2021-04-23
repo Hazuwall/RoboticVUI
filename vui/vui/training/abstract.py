@@ -43,6 +43,13 @@ class AcousticModelTrainer(TrainerBase):
                                    use_max_classes_per_batch=True)
         return pipeline.Shuffle(patch_size=4)(x)
 
+    def merge_fine_tuning_dataset(self, x: pipeline.Pipe, size: int):
+        storage = pipeline.get_wav_folder_storage(
+            self._config.ref_dataset_name).get_transformed(self._frontend.process)
+        y = pipeline.LabeledSource(self._config.frontend_shape, storage,
+                                   batch_size=size, start_index=self._config.test_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+        return pipeline.Merge(y)(x)
+
     @ property
     def model(self):
         return self._acoustic_model

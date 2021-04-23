@@ -25,7 +25,7 @@ class Trainer(AcousticModelTrainer):
         self._frontend = frontend
 
         # Classes initialization
-        self._dataset = self.create_training_pipeline(stage == 1)
+        self._dataset = self.create_training_pipeline()
         optimizer = tf.keras.optimizers.Adam()
         model = self._acoustic_model
 
@@ -47,18 +47,14 @@ class Trainer(AcousticModelTrainer):
 
         self.train_step = train_step
 
-    def create_training_pipeline(self, fine_tuning: bool):
+    def create_training_pipeline(self):
         storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
         x = pipeline.LabeledSource(self._config.frontend_shape, storage,
                                    batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
         x = pipeline.Cache(self._config.batch_size // 3)(x)
 
-        if fine_tuning:
-            storage = pipeline.get_wav_folder_storage(
-                self._config.ref_dataset_name).get_transformed(self._frontend.process)
-            y = pipeline.LabeledSource(self._config.frontend_shape, storage,
-                                       batch_size=self._config.batch_size // 3, start_index=self._config.test_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
-            x = pipeline.Merge(y)(x)
+        if self._stage == 1:
+            x = self.merge_fine_tuning_dataset(x, self._config.batch_size // 3)
 
         storage = pipeline.get_hdf_storage('h', "t_mx_Mix")
         z = pipeline.UnlabeledSource(self._config.frontend_shape, storage,

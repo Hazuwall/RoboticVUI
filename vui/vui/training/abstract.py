@@ -22,13 +22,14 @@ class TrainerBase(ABC):
 
 
 class AcousticModelTrainer(TrainerBase):
-    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, evaluator: Evaluator) -> None:
+    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, evaluator: Evaluator, stage: int) -> None:
         self._config = config
         self._filesystem = filesystem
         self._acoustic_model = acoustic_model
         self._evaluator = evaluator
+        self._stage = stage
 
-        logs_path = filesystem.get_logs_dir()
+        logs_path = "{}\\stage{}".format(filesystem.get_logs_dir(), stage)
         self._summary_writer = tf.summary.create_file_writer(logs_path)
 
         self._validation_dataset = self.create_validation_pipeline()
@@ -42,11 +43,11 @@ class AcousticModelTrainer(TrainerBase):
                                    use_max_classes_per_batch=True)
         return pipeline.Shuffle(patch_size=4)(x)
 
-    @property
+    @ property
     def model(self):
         return self._acoustic_model
 
-    @abstractmethod
+    @ abstractmethod
     def run_step_core(self, step: tf.Tensor) -> None:
         pass
 
@@ -99,6 +100,6 @@ class AcousticModelTrainer(TrainerBase):
 
 
 class TrainerFactoryBase(ABC):
-    @abstractmethod
+    @ abstractmethod
     def get_trainer(self, stage: int) -> TrainerBase:
         pass

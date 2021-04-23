@@ -13,19 +13,19 @@ class TrainerFactory(TrainerFactoryBase):
     def get_trainer(self, stage: int):
         return Trainer(locator.get_config(), locator.get_filesystem_provider(),
                        locator.get_acoustic_model(), locator.get_evaluator(), locator.get_frontend_processor(),
-                       fine_tuning=(stage == 1))
+                       stage=stage)
 
 
 class Trainer(AcousticModelTrainer):
     def __init__(self, config, filesystem: FilesystemProvider,
-                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase, fine_tuning: bool = False) -> None:
+                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase, stage: int) -> None:
         super(Trainer, self).__init__(
-            config, filesystem, acoustic_model, evaluator)
+            config, filesystem, acoustic_model, evaluator, stage)
 
         self._frontend = frontend
 
         # Classes initialization
-        self._dataset = self.create_training_pipeline(fine_tuning)
+        self._dataset = self.create_training_pipeline(stage == 1)
         optimizer = tf.keras.optimizers.Adam()
         model = self._acoustic_model
 

@@ -3,7 +3,7 @@ from typing import Callable, Optional
 import numpy as np
 import vui.frontend.dsp as dsp
 from vui.infrastructure.filesystem import FilesystemProvider
-from vui.dataset.storage import ROW_FETCH_MODE, WavFolderStorage
+from vui.dataset.storage import ROW_FETCH_MODE, get_storage_from_wav_folder
 
 
 class WeightsStorage:
@@ -44,7 +44,7 @@ class ReferenceWordsDictionary():
         path = self.filesystem.get_dataset_path(
             "r", self.config.ref_dataset_name)
 
-        storage = WavFolderStorage(path)
+        storage = get_storage_from_wav_folder(path)
         words = storage.get_dataset_list()
         embeddings = []
         for word in words:

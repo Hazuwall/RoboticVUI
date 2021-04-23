@@ -1,5 +1,6 @@
 import os
 import random
+from typing import Callable
 import numpy as np
 import h5py
 import math
@@ -109,36 +110,16 @@ class HdfStorage(Storage):
             return f[self.group_label + label][sorted(indices)]
 
 
-class WavFolderStorage(Storage):
-    def __init__(self, path: str) -> None:
-        self.path = path
-        self.cache = {}
-        self.load()
-
-    def load(self) -> None:
-        labels = os.listdir(self.path)
-        self.cache = {}
-        for label in labels:
-            label_dir = os.path.join(self.path, label)
-            frames_list = []
-
-            for filename in os.listdir(label_dir):
-                file_path = os.path.join(label_dir, filename)
-                frames_list.append(dsp.read(file_path))
-
-            max_length = max([len(frames) for frames in frames_list])
-            frames_array = np.zeros([len(frames_list), max_length])
-            for i, frames in enumerate(frames_list):
-                frames_array[i, :len(frames)] = frames
-
-            self.cache[label] = frames_array
+class InMemoryStorage(Storage):
+    def __init__(self, store: dict) -> None:
+        self.store = store
 
     def get_dataset_list(self) -> list:
-        return list(self.cache.keys())
+        return list(self.store.keys())
 
     def fetch_subset(self, label: str, start: int, size: int, mode: str = RANDOM_FETCH_MODE,
                      return_indices: bool = False, patch_size: int = 2):
-        dset = self.cache[label]
+        dset = self.store[label]
         indices = self._get_sorted_indices(
             start, size, len(dset), mode, patch_size)
         X = dset[indices]
@@ -149,4 +130,30 @@ class WavFolderStorage(Storage):
             return X
 
     def fetch_subset_from_indices(self, label: str, indices: list):
-        return self.cache[label][indices]
+        return self.store[label][indices]
+
+    def get_transformed(self, transformer: Callable):
+        transformed_store = {}
+        for label in self.get_dataset_list():
+            transformed_store[label] = transformer(self.store[label])
+        return InMemoryStorage(transformed_store)
+
+
+def get_storage_from_wav_folder(path: str) -> InMemoryStorage:
+    labels = os.listdir(path)
+    store = {}
+    for label in labels:
+        label_dir = os.path.join(path, label)
+        frames_list = []
+
+        for filename in os.listdir(label_dir):
+            file_path = os.path.join(label_dir, filename)
+            frames_list.append(dsp.read(file_path))
+
+        max_length = max([len(frames) for frames in frames_list])
+        frames_array = np.zeros([len(frames_list), max_length])
+        for i, frames in enumerate(frames_list):
+            frames_array[i, :len(frames)] = frames
+
+        store[label] = frames_array
+    return InMemoryStorage(store)

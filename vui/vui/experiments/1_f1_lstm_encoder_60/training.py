@@ -12,19 +12,20 @@ import vui.infrastructure.locator as locator
 class TrainerFactory(TrainerFactoryBase):
     def get_trainer(self, stage: int):
         return Trainer(locator.get_config(), locator.get_filesystem_provider(),
-                       locator.get_acoustic_model(), locator.get_evaluator(), locator.get_frontend_processor())
+                       locator.get_acoustic_model(), locator.get_evaluator(), locator.get_frontend_processor(),
+                       fine_tuning=(stage == 1))
 
 
 class Trainer(AcousticModelTrainer):
     def __init__(self, config, filesystem: FilesystemProvider,
-                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase) -> None:
+                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase, fine_tuning: bool = False) -> None:
         super(Trainer, self).__init__(
             config, filesystem, acoustic_model, evaluator)
 
         self._frontend = frontend
 
         # Classes initialization
-        self._dataset = self.create_training_pipeline()
+        self._dataset = self.create_training_pipeline(fine_tuning)
         optimizer = tf.keras.optimizers.Adam()
         model = self._acoustic_model
 
@@ -46,11 +47,18 @@ class Trainer(AcousticModelTrainer):
 
         self.train_step = train_step
 
-    def create_training_pipeline(self):
+    def create_training_pipeline(self, fine_tuning: bool):
         storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
         x = pipeline.LabeledSource(self._config.frontend_shape, storage,
                                    batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
         x = pipeline.Cache(self._config.batch_size // 3)(x)
+
+        if fine_tuning:
+            storage = pipeline.get_wav_folder_storage(
+                self._config.ref_dataset_name).get_transformed(self._frontend.process)
+            y = pipeline.LabeledSource(self._config.frontend_shape, storage,
+                                       batch_size=self._config.batch_size // 3, start_index=self._config.test_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+            x = pipeline.Merge(y)(x)
 
         storage = pipeline.get_hdf_storage('h', "t_mx_Mix")
         z = pipeline.UnlabeledSource(self._config.frontend_shape, storage,

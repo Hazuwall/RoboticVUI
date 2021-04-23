@@ -12,7 +12,7 @@ from vui.infrastructure.filesystem import FilesystemProvider
 from vui.model.services import FramesToEmbeddingService
 from vui.model.data_access import ReferenceWordsDictionary
 from vui.recognition import WordRecognizer
-from vui.dataset.storage import ROW_FETCH_MODE, Storage, WavFolderStorage
+from vui.dataset.storage import ROW_FETCH_MODE, Storage, get_storage_from_wav_folder
 
 
 class StructureInfo:
@@ -102,7 +102,7 @@ class Evaluator:
         path = self._filesystem.get_dataset_path(
             "r", self._config.ref_dataset_name)
 
-        storage = WavFolderStorage(path)
+        storage = get_storage_from_wav_folder(path)
         word_samples = self._get_word_samples(storage)
 
         total_count = 0

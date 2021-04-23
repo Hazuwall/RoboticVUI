@@ -3,7 +3,7 @@ import random
 from typing import Optional, Tuple
 from vui.frontend.abstract import FrontendProcessorBase
 import numpy as np
-from vui.dataset.storage import Storage, HdfStorage, WavFolderStorage, COUPLED_FETCH_MODE, RANDOM_FETCH_MODE, PATCH_FETCH_MODE
+from vui.dataset.storage import Storage, HdfStorage, InMemoryStorage, get_storage_from_wav_folder, COUPLED_FETCH_MODE, RANDOM_FETCH_MODE, PATCH_FETCH_MODE
 from vui.dataset import augmentation
 import vui.infrastructure.locator as locator
 
@@ -22,10 +22,10 @@ def get_hdf_storage(type_letter: str, dataset_name: str) -> HdfStorage:
     return HdfStorage(path)
 
 
-def get_wav_folder_storage(dataset_name: str) -> WavFolderStorage:
+def get_wav_folder_storage(dataset_name: str) -> InMemoryStorage:
     path = locator.get_filesystem_provider().get_dataset_path(
         "r", dataset_name)
-    return WavFolderStorage(path)
+    return get_storage_from_wav_folder(path)
 
 
 class Pipe(ABC):

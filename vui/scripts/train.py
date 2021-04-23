@@ -21,6 +21,6 @@ def main(stage: int):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-s", "--stage", dest="stage",
-                        help="training stage", default=0)
+                        help="training stage", default=0, type=int)
 
     main(parser.parse_args().stage)

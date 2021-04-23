@@ -3,6 +3,7 @@ from typing import Callable, Optional
 import numpy as np
 import vui.frontend.dsp as dsp
 from vui.infrastructure.filesystem import FilesystemProvider
+from vui.dataset.storage import ROW_FETCH_MODE, get_storage_from_wav_folder
 
 
 class WeightsStorage:
@@ -40,13 +41,16 @@ class ReferenceWordsDictionary():
         self.force_load()
 
     def force_load(self) -> None:
-        ref_word_paths = self.filesystem.get_reference_word_paths()
-        words = []
+        path = self.filesystem.get_dataset_path(
+            "r", self.config.ref_dataset_name)
+
+        storage = get_storage_from_wav_folder(path)
+        words = storage.get_dataset_list()
         embeddings = []
-        for word, path in ref_word_paths.items():
-            frames = dsp.read(path)
+        for word in words:
+            frames = storage.fetch_subset(
+                word, start=0, size=1, mode=ROW_FETCH_MODE)[0]
             embedding = self.frames_encoding_handler(frames)
-            words.append(word)
             embeddings.append(embedding)
 
         words.append(self.config.silence_word)

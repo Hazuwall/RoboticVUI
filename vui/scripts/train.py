@@ -1,8 +1,9 @@
+from argparse import ArgumentParser
 import vui.infrastructure.locator as locator
 import vui.model.metrics as metrics
 
 
-def main(stage: int = 0):
+def main(stage: int):
     config = locator.get_config()
     trainer = locator.get_trainer_factory().get_trainer(stage)
 
@@ -18,4 +19,8 @@ def main(stage: int = 0):
 
 
 if __name__ == "__main__":
-    main()
+    parser = ArgumentParser()
+    parser.add_argument("-s", "--stage", dest="stage",
+                        help="training stage", default=0, type=int)
+
+    main(parser.parse_args().stage)

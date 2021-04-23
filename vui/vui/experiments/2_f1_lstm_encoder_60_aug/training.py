@@ -12,14 +12,15 @@ import vui.infrastructure.locator as locator
 class TrainerFactory(TrainerFactoryBase):
     def get_trainer(self, stage: int):
         return Trainer(locator.get_config(), locator.get_filesystem_provider(),
-                       locator.get_acoustic_model(), locator.get_evaluator(), locator.get_frontend_processor())
+                       locator.get_acoustic_model(), locator.get_evaluator(), locator.get_frontend_processor(),
+                       stage=stage)
 
 
 class Trainer(AcousticModelTrainer):
     def __init__(self, config, filesystem: FilesystemProvider,
-                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase) -> None:
+                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase, stage: int) -> None:
         super(Trainer, self).__init__(
-            config, filesystem, acoustic_model, evaluator)
+            config, filesystem, acoustic_model, evaluator, stage)
 
         self._frontend = frontend
 
@@ -48,15 +49,18 @@ class Trainer(AcousticModelTrainer):
 
     def create_training_pipeline(self):
         storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
-        x = pipeline.LabeledStorage(self._config.frontend_shape, storage,
-                                    batch_size=self._config.cache_size*5, fetch_mode=pipeline.COUPLED_FETCH_MODE)
-        x = pipeline.Shuffle(group_size=4)(x)
+        x = pipeline.LabeledSource(self._config.frontend_shape, storage,
+                                   batch_size=self._config.cache_size*5, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+        x = pipeline.Shuffle(patch_size=4)(x)
         x = pipeline.Cache(self._config.batch_size // 3)(x)
 
+        if self._stage == 1:
+            x = self.merge_fine_tuning_dataset(x, self._config.batch_size // 3)
+
         storage = pipeline.get_hdf_storage('h', "t_mx_Mix")
-        z = pipeline.UnlabeledStorage(self._config.frontend_shape, storage,
-                                      batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
-        z = pipeline.Shuffle(group_size=4)(z)
+        z = pipeline.UnlabeledSource(self._config.frontend_shape, storage,
+                                     batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+        z = pipeline.Shuffle(patch_size=4)(z)
         storage = pipeline.get_hdf_storage('r', "t_mx_Mix")
         z = pipeline.UnlabeledAugment(
             storage, self._frontend, self._config.aug_rate, self._config.framerate)(z)

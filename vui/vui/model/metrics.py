@@ -12,6 +12,7 @@ from vui.infrastructure.filesystem import FilesystemProvider
 from vui.model.services import FramesToEmbeddingService
 from vui.model.data_access import ReferenceWordsDictionary
 from vui.recognition import WordRecognizer
+from vui.dataset.storage import ROW_FETCH_MODE, Storage, get_storage_from_wav_folder
 
 
 class StructureInfo:
@@ -98,10 +99,11 @@ class Evaluator:
         self._word_recognizer = word_recognizer
 
     def evaluate(self) -> Tuple[float, float, float]:
-        word_paths = self._filesystem.get_test_word_paths()
-        if len(word_paths.keys()) == 0:
-            return np.NaN
-        word_samples = self._get_word_samples(word_paths)
+        path = self._filesystem.get_dataset_path(
+            "r", self._config.ref_dataset_name)
+
+        storage = get_storage_from_wav_folder(path)
+        word_samples = self._get_word_samples(storage)
 
         total_count = 0
         correct_count = 0
@@ -109,17 +111,15 @@ class Evaluator:
         unknown_count = 0
         correct_weight = 0
         incorrect_weight = 0
-        word_samples_iterator = iter(word_samples.values())
-        first_word_samples = next(word_samples_iterator)
-        dictor_count = len(first_word_samples)
-        for ref_dictor_i in range(dictor_count):
+        for ref_dictor_i in range(self._config.test_size):
             self._set_ref_samples(word_samples, ref_dictor_i)
 
             for expected_word in word_samples.keys():
-                for dictor_i, sample in enumerate(word_samples[expected_word]):
+                frames = word_samples[expected_word].frames
+                for dictor_i in range(len(frames)):
                     if dictor_i != ref_dictor_i:
                         actual_word, weight = self._word_recognizer.recognize(
-                            sample.frames)
+                            frames[dictor_i])
                         if actual_word == expected_word:
                             correct_count += 1
                             correct_weight += weight
@@ -133,20 +133,19 @@ class Evaluator:
         wrong_word_count = total_count - correct_count - unknown_count - silence_count
         return np.true_divide(correct_count, total_count), np.true_divide(silence_count, total_count), np.true_divide(unknown_count, total_count), np.true_divide(wrong_word_count, total_count), np.true_divide(correct_weight, correct_count), np.true_divide(incorrect_weight, total_count - correct_count)
 
-    def _get_word_samples(self, word_paths: dict) -> dict:
+    def _get_word_samples(self, storage: Storage) -> dict:
         word_embeddings = {}
-        for word in word_paths:
-            samples = []
-            for path in word_paths[word]:
-                frames = dsp.read(path)
-                embedding = self._f2e_service.encode(frames)
-                sample = SimpleNamespace(frames=frames, embedding=embedding)
-                samples.append(sample)
-            word_embeddings[word] = samples
+        for word in storage.get_dataset_list():
+            frames = storage.fetch_subset(
+                word, start=0, size=self._config.test_size, mode=ROW_FETCH_MODE)
+            embeddings = self._f2e_service.encode(frames)
+            word_embeddings[word] = SimpleNamespace(
+                frames=frames, embeddings=embeddings)
         return word_embeddings
 
     def _set_ref_samples(self, word_samples: dict, dictor_i: int) -> None:
         words = list(word_samples.keys())
-        embeddings = [word_samples[word][dictor_i].embedding for word in words]
+        embeddings = [word_samples[word].embeddings[dictor_i]
+                      for word in words]
         embeddings = np.stack(embeddings, axis=0)
         self._ref_word_dictionary.update(words, embeddings)

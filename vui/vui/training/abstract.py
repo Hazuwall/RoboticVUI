@@ -22,13 +22,14 @@ class TrainerBase(ABC):
 
 
 class AcousticModelTrainer(TrainerBase):
-    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, evaluator: Evaluator) -> None:
+    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, evaluator: Evaluator, stage: int) -> None:
         self._config = config
         self._filesystem = filesystem
         self._acoustic_model = acoustic_model
         self._evaluator = evaluator
+        self._stage = stage
 
-        logs_path = filesystem.get_logs_dir()
+        logs_path = "{}\\stage{}".format(filesystem.get_logs_dir(), stage)
         self._summary_writer = tf.summary.create_file_writer(logs_path)
 
         self._validation_dataset = self.create_validation_pipeline()
@@ -37,16 +38,23 @@ class AcousticModelTrainer(TrainerBase):
 
     def create_validation_pipeline(self):
         storage = pipeline.get_hdf_storage('h', "s_en_SpeechCommands")
-        x = pipeline.LabeledStorage(self._config.frontend_shape, storage,
-                                    batch_size=self._config.validation_size, fetch_mode=pipeline.COUPLED_FETCH_MODE,
-                                    use_max_classes_per_batch=True)
-        return pipeline.Shuffle(group_size=4)(x)
+        x = pipeline.LabeledSource(self._config.frontend_shape, storage,
+                                   batch_size=self._config.validation_size, fetch_mode=pipeline.COUPLED_FETCH_MODE,
+                                   use_max_classes_per_batch=True)
+        return pipeline.Shuffle(patch_size=4)(x)
 
-    @property
+    def merge_fine_tuning_dataset(self, x: pipeline.Pipe, size: int):
+        storage = pipeline.get_wav_folder_storage(
+            self._config.ref_dataset_name).get_transformed(self._frontend.process)
+        y = pipeline.LabeledSource(self._config.frontend_shape, storage,
+                                   batch_size=size, start_index=self._config.test_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+        return pipeline.Merge(y)(x)
+
+    @ property
     def model(self):
         return self._acoustic_model
 
-    @abstractmethod
+    @ abstractmethod
     def run_step_core(self, step: tf.Tensor) -> None:
         pass
 
@@ -99,6 +107,6 @@ class AcousticModelTrainer(TrainerBase):
 
 
 class TrainerFactoryBase(ABC):
-    @abstractmethod
+    @ abstractmethod
     def get_trainer(self, stage: int) -> TrainerBase:
         pass

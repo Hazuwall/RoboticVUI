@@ -12,14 +12,15 @@ import vui.infrastructure.locator as locator
 class TrainerFactory(TrainerFactoryBase):
     def get_trainer(self, stage: int):
         return Trainer(locator.get_config(), locator.get_filesystem_provider(),
-                       locator.get_acoustic_model(), locator.get_evaluator(), locator.get_frontend_processor())
+                       locator.get_acoustic_model(), locator.get_evaluator(), locator.get_frontend_processor(),
+                       stage=stage)
 
 
 class Trainer(AcousticModelTrainer):
     def __init__(self, config, filesystem: FilesystemProvider,
-                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase) -> None:
+                 acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase, stage: int) -> None:
         super(Trainer, self).__init__(
-            config, filesystem, acoustic_model, evaluator)
+            config, filesystem, acoustic_model, evaluator, stage)
 
         self._frontend = frontend
 
@@ -51,6 +52,9 @@ class Trainer(AcousticModelTrainer):
         x = pipeline.LabeledSource(self._config.frontend_shape, storage,
                                    batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
         x = pipeline.Cache(self._config.batch_size // 3)(x)
+
+        if self._stage == 1:
+            x = self.merge_fine_tuning_dataset(x, self._config.batch_size // 3)
 
         storage = pipeline.get_hdf_storage('h', "t_mx_Mix")
         z = pipeline.UnlabeledSource(self._config.frontend_shape, storage,

@@ -3,16 +3,50 @@ import numpy as np
 import time
 from keras.utils.layer_utils import count_params
 from keras.utils.vis_utils import model_to_dot
-from keras_flops import get_flops
+from tensorflow.keras import Sequential, Model
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2_as_graph
 import IPython.core.magics.namespace  # not used here, but need for tensorflow
 from types import SimpleNamespace
-from typing import Tuple
-import vui.frontend.dsp as dsp
+from typing import Optional, Tuple, Union
 from vui.infrastructure.filesystem import FilesystemProvider
 from vui.model.services import FramesToEmbeddingService
 from vui.model.data_access import ReferenceWordsDictionary
 from vui.recognition import WordRecognizer
 from vui.dataset.storage import ROW_FETCH_MODE, Storage, get_storage_from_wav_folder
+
+
+def get_flops(model: Union[Model, Sequential], batch_size: Optional[int] = None) -> int:
+    """
+    https://pypi.org/project/keras-flops/
+
+    Calculate FLOPS for tf.keras.Model or tf.keras.Sequential .
+    Ignore operations used in only training mode such as Initialization.
+    Use tf.profiler of tensorflow v1 api.
+    """
+    if not isinstance(model, (Sequential, Model)):
+        raise KeyError(
+            "model arguments must be tf.keras.Model or tf.keras.Sequential instanse"
+        )
+
+    if batch_size is None:
+        batch_size = 1
+
+    # convert tf.keras model into frozen graph to count FLOPS about operations used at inference
+    # FLOPS depends on batch size
+    inputs = [
+        tf.TensorSpec([batch_size] + inp.shape[1:], inp.dtype) for inp in model.inputs
+    ]
+    real_model = tf.function(model).get_concrete_function(inputs)
+    frozen_func, _ = convert_variables_to_constants_v2_as_graph(real_model)
+
+    # Calculate FLOPS with tf.profiler
+    run_meta = tf.compat.v1.RunMetadata()
+    opts = tf.compat.v1.profiler.ProfileOptionBuilder.float_operation()
+    opts["output"] = "none"
+    flops = tf.compat.v1.profiler.profile(
+        graph=frozen_func.graph, run_meta=run_meta, cmd="scope", options=opts,
+    )
+    return flops.total_float_ops
 
 
 class StructureInfo:

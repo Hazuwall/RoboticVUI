@@ -22,7 +22,7 @@
         {
             "label": "Train",
             "type": "shell",
-            "command": "python scripts/train.py --stage=${input:stage}",
+            "command": "python scripts/train.py --stage=${input:stage} --steps=${input:steps}",
             "presentation": {
                 "reveal": "always",
                 "focus": true,
@@ -47,6 +47,12 @@
             "id": "stage",
             "description": "Training stage:",
             "default": "0",
+            "type": "promptString"
+        },
+        {
+            "id": "steps",
+            "description": "Training steps:",
+            "default": "1000",
             "type": "promptString"
         },
     ]

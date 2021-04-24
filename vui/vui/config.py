@@ -13,7 +13,6 @@ unknown_word = "_unknown"
 ref_dataset_name = "s_ru_RoboticCommands"
 
 # Training
-training_steps = 60000
 display_interval = 100
 checkpoint_interval = 1000
 test_size = 8

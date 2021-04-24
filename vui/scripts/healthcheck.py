@@ -36,7 +36,6 @@ def status(text: str):
 def override_config():
     config = locator.get_config()
     config.build = 1000
-    config.training_steps = 2
     config.display_interval = 1
     config.checkpoint_interval = 2
     config.cache_size = config.batch_size * 2
@@ -54,7 +53,7 @@ def run_training():
         import train
         stages = locator.get_config().stages
         for stage in range(stages):
-            train.main(stage)
+            train.main(stage, 2)
 
 
 def run_inference():

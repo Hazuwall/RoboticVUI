@@ -40,6 +40,7 @@ def override_config():
     config.display_interval = 1
     config.checkpoint_interval = 2
     config.cache_size = config.batch_size * 2
+    config.verbose = False
 
 
 def clone_experiment_core(source_dir: str):

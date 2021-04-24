@@ -7,6 +7,7 @@ class FrontendProcessorBase(ABC):
         self._config = config
 
     def process(self, frames: np.ndarray) -> np.ndarray:
+        frames = frames.copy()
         if len(frames.shape) == 1:
             return self._process_one(frames)
 

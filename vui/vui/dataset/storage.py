@@ -138,6 +138,9 @@ class InMemoryStorage(Storage):
             transformed_store[label] = transformer(self.store[label])
         return InMemoryStorage(transformed_store)
 
+    def as_dict(self):
+        return self.store
+
 
 def get_storage_from_wav_folder(path: str) -> InMemoryStorage:
     labels = os.listdir(path)

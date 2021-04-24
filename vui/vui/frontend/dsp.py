@@ -14,6 +14,7 @@ def get_framerate(filepath: str) -> int:
 def read(filepath: str) -> np.ndarray:
     """Get frames of the given audiofile first channel. MP3 is not supported."""
     frames = sf.read(filepath, dtype='float32', always_2d=True)[0][:, 0]
+    frames = frames / max(abs(frames))
     return np.nan_to_num(frames)
 
 

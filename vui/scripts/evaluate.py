@@ -1,13 +1,15 @@
 from termcolor import colored
+from pprint import pprint
 import vui.infrastructure.locator as locator
 
 
 def main():
     status("Working...")
     evaluator = locator.get_evaluator()
-    result = evaluator.evaluate()
+    result = evaluator.evaluate().get_summary()
 
-    status("Result: {}".format(result))
+    status("Printing result...")
+    pprint(vars(result))
 
 
 def status(text: str):

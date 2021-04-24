@@ -51,42 +51,83 @@ def get_flops(model: Union[Model, Sequential], batch_size: Optional[int] = None)
 
 class StructureInfo:
     def __init__(self):
-        self._variable_count = 0
-        self._weights_size = 0
-        self._flops = 0
-        self._svg = None
+        self.variable_count: int = 0
+        self.weights_size: int = 0
+        self.flops: int = 0
+        self.svg: Optional[bytearray] = None
 
-    @property
-    def variable_count(self) -> int:
-        return self._variable_count
 
-    @variable_count.setter
-    def variable_count(self, value: int):
-        self._variable_count = value
+class EvaluationSummary:
+    def __init__(self) -> None:
+        self.total = 0
+        self.correct = 0
+        self.incorrect = 0
+        self.false_silence = 0
+        self.false_unknown = 0
+        self.false_word = 0
+        self.correct_weight = 0
+        self.incorrect_weight = 0
 
-    @property
-    def weights_size(self) -> int:
-        return self._weights_size
+    def normalize(self):
+        self.correct_weight = np.true_divide(self.correct_weight, self.correct)
+        self.incorrect_weight = np.true_divide(
+            self.incorrect_weight, self.incorrect)
 
-    @weights_size.setter
-    def weights_size(self, value: int):
-        self._weights_size = value
+        self.correct = np.true_divide(self.correct, self.total)
+        self.incorrect = np.true_divide(self.incorrect, self.total)
+        self.false_silence = np.true_divide(self.false_silence, self.total)
+        self.false_unknown = np.true_divide(self.false_unknown, self.total)
+        self.false_word = np.true_divide(self.false_word, self.total)
+        self.total = 1
 
-    @property
-    def flops(self) -> int:
-        return self._flops
 
-    @flops.setter
-    def flops(self, value: int):
-        self._flops = value
+class ConfusionMatrix:
+    def __init__(self, labels: list, silence_word: str, unknown_word: str) -> None:
+        all_labels = labels.copy()
+        all_labels.append(silence_word)
+        all_labels.append(unknown_word)
 
-    @property
-    def svg(self) -> bytearray:
-        return self._svg
+        self.matrix = self._create_confusion_matrix(all_labels)
+        self.silence_word = silence_word
+        self.unknown_word = unknown_word
 
-    @svg.setter
-    def svg(self, value: bytearray):
-        self._svg = value
+    def add(self, expected: str, actual: str, weight: float):
+        entry = self.matrix[expected][actual]
+        entry[0] += 1
+        entry[1] += weight
+
+    def get_summary(self):
+        summary = EvaluationSummary()
+        for expected, actual_vector in self.matrix.items():
+            for actual, entry in actual_vector.items():
+                count, weight = entry
+
+                summary.total += count
+                if actual == expected:
+                    summary.correct += count
+                    summary.correct_weight += weight
+                else:
+                    summary.incorrect += count
+                    summary.incorrect_weight += weight
+
+                    if actual == self.silence_word:
+                        summary.false_silence += count
+                    elif actual == self.unknown_word:
+                        summary.false_unknown += count
+                    else:
+                        summary.false_word += count
+
+        summary.normalize()
+        return summary
+
+    def _create_confusion_matrix(self, labels: list) -> dict:
+        matrix = {}
+        for expected_word in labels:
+            actual_vector = {}
+            for actual_word in labels:
+                actual_vector[actual_word] = [0, 0]
+            matrix[expected_word] = actual_vector
+        return matrix
 
 
 def get_structure_info(model: tf.keras.Model) -> StructureInfo:
@@ -132,54 +173,48 @@ class Evaluator:
         self._ref_word_dictionary = ref_word_dictionary
         self._word_recognizer = word_recognizer
 
-    def evaluate(self) -> Tuple[float, float, float]:
+    def evaluate(self) -> ConfusionMatrix:
         path = self._filesystem.get_dataset_path(
             "r", self._config.ref_dataset_name)
 
-        storage = get_storage_from_wav_folder(path)
-        word_samples = self._get_word_samples(storage)
+        samples_by_words = get_storage_from_wav_folder(path).as_dict()
+        words = list(samples_by_words.keys())
+        samples_by_dictors = self._get_samples_by_dictors(samples_by_words)
 
-        total_count = 0
-        correct_count = 0
-        silence_count = 0
-        unknown_count = 0
-        correct_weight = 0
-        incorrect_weight = 0
-        for ref_dictor_i in range(self._config.test_size):
-            self._set_ref_samples(word_samples, ref_dictor_i)
+        matrix = ConfusionMatrix(
+            words, self._config.silence_word, self._config.unknown_word)
+        for ref_dictor_i, ref_sample in enumerate(samples_by_dictors):
+            self._ref_word_dictionary.update(words, ref_sample.embeddings)
 
-            for expected_word in word_samples.keys():
-                frames = word_samples[expected_word].frames
-                for dictor_i in range(len(frames)):
-                    if dictor_i != ref_dictor_i:
-                        actual_word, weight = self._word_recognizer.recognize(
-                            frames[dictor_i])
-                        if actual_word == expected_word:
-                            correct_count += 1
-                            correct_weight += weight
-                        else:
-                            incorrect_weight += weight
-                        silence_count += 1 if actual_word == self._config.silence_word else 0
-                        unknown_count += 1 if actual_word == self._config.unknown_word else 0
-                        total_count += 1
+            for dictor_i, sample in enumerate(samples_by_dictors):
+                if dictor_i != ref_dictor_i:
+                    for word_i, frames in enumerate(sample.frames):
+                        expected = words[word_i]
+                        actual, weight = self._word_recognizer.recognize(
+                            frames)
+                        matrix.add(expected, actual, weight)
 
         self._ref_word_dictionary.force_load()
-        wrong_word_count = total_count - correct_count - unknown_count - silence_count
-        return np.true_divide(correct_count, total_count), np.true_divide(silence_count, total_count), np.true_divide(unknown_count, total_count), np.true_divide(wrong_word_count, total_count), np.true_divide(correct_weight, correct_count), np.true_divide(incorrect_weight, total_count - correct_count)
+        return matrix
 
-    def _get_word_samples(self, storage: Storage) -> dict:
-        word_embeddings = {}
-        for word in storage.get_dataset_list():
-            frames = storage.fetch_subset(
-                word, start=0, size=self._config.test_size, mode=ROW_FETCH_MODE)
+    def _get_samples_by_dictors(self, samples_by_words: dict) -> list:
+        samples_by_dictors = []
+        words = list(samples_by_words.keys())
+        frames_length = self._config.framerate
+
+        for i in range(self._config.test_size):
+            frames = np.zeros([len(words), frames_length])
+            for j, samples_per_word in enumerate(samples_by_words.values()):
+                if len(samples_per_word[i]) < frames_length:
+                    frames[j] = np.pad(
+                        samples_per_word[i], (0, frames_length-len(samples_per_word[i])))
+                else:
+                    frames[j] = samples_per_word[i, :frames_length]
+
             embeddings = self._f2e_service.encode(frames)
-            word_embeddings[word] = SimpleNamespace(
-                frames=frames, embeddings=embeddings)
-        return word_embeddings
 
-    def _set_ref_samples(self, word_samples: dict, dictor_i: int) -> None:
-        words = list(word_samples.keys())
-        embeddings = [word_samples[word].embeddings[dictor_i]
-                      for word in words]
-        embeddings = np.stack(embeddings, axis=0)
-        self._ref_word_dictionary.update(words, embeddings)
+            samples_per_dictor = SimpleNamespace(
+                frames=frames, embeddings=embeddings)
+            samples_by_dictors.append(samples_per_dictor)
+
+        return samples_by_dictors

@@ -53,17 +53,17 @@ class ReferenceWordsDictionary():
             embedding = self.frames_encoding_handler(frames)
             embeddings.append(embedding)
 
-        words.append(self.config.silence_word)
-        silence_embedding = self.frames_encoding_handler(
-            0.0001 * np.ones((self.config.framerate)))
-        embeddings.append(silence_embedding)
-
-        self.words = words
-        self.embeddings = np.stack(embeddings, axis=0)
+        self.update(words, np.concatenate(embeddings, axis=0))
 
     def update(self, words, embeddings) -> None:
+        words = words.copy()
+        words.append(self.config.silence_word)
         self.words = words
-        self.embeddings = embeddings
+
+        silence_embedding = self.frames_encoding_handler(
+            0.0001 * np.ones((self.config.framerate)))
+        self.embeddings = np.concatenate(
+            [embeddings, silence_embedding], axis=0)
 
 
 class ModelInfoSaver:

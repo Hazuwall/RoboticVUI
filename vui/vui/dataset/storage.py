@@ -107,7 +107,7 @@ class HdfStorage(Storage):
 
     def fetch_subset_from_indices(self, label: str, indices: list):
         with h5py.File(self.path, 'r') as f:
-            return f[self.group_label + label][sorted(indices)]
+            return f[self.group_label + label][indices]
 
 
 class InMemoryStorage(Storage):

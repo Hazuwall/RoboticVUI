@@ -11,17 +11,17 @@ def shift(frames: np.ndarray, max_n: int, axis: Optional[int] = None) -> np.ndar
 
 
 def change_pitch(frames: np.ndarray, framerate: int) -> np.ndarray:
-    pitch_change = 3*np.random.uniform() - 2
     frames_out = np.zeros(frames.shape)
 
     for i in range(len(frames)):
+        pitch_change = 3*np.random.uniform() - 2
         frames_out[i] = librosa.effects.pitch_shift(
             frames[i], framerate, n_steps=pitch_change)
     return frames_out
 
 
 def add_noise(frames: np.ndarray) -> np.ndarray:
-    noise_amp = 0.01 * \
+    noise_amp = 0.02 * \
         np.random.uniform(
             size=(frames.shape[0], 1))*np.amax(frames, axis=1, keepdims=True)
     return frames + noise_amp * np.random.normal(size=frames.shape)

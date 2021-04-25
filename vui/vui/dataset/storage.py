@@ -142,7 +142,7 @@ class InMemoryStorage(Storage):
         return self.store
 
 
-def get_storage_from_wav_folder(path: str) -> InMemoryStorage:
+def get_storage_from_wav_folder(path: str, max_length: int) -> InMemoryStorage:
     labels = os.listdir(path)
     store = {}
     for label in labels:
@@ -153,10 +153,13 @@ def get_storage_from_wav_folder(path: str) -> InMemoryStorage:
             file_path = os.path.join(label_dir, filename)
             frames_list.append(dsp.read(file_path))
 
-        max_length = max([len(frames) for frames in frames_list])
         frames_array = np.zeros([len(frames_list), max_length])
         for i, frames in enumerate(frames_list):
-            frames_array[i, :len(frames)] = frames
+            if len(frames) < max_length:
+                frames = np.pad(frames, (0, max_length-len(frames)))
+            else:
+                frames = frames[:max_length]
+            frames_array[i] = frames
 
         store[label] = frames_array
     return InMemoryStorage(store)

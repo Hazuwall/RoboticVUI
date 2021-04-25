@@ -25,7 +25,8 @@ def get_hdf_storage(type_letter: str, dataset_name: str) -> HdfStorage:
 def get_wav_folder_storage(dataset_name: str) -> InMemoryStorage:
     path = locator.get_filesystem_provider().get_dataset_path(
         "r", dataset_name)
-    return get_storage_from_wav_folder(path)
+    max_length = locator.get_config().framerate
+    return get_storage_from_wav_folder(path, max_length)
 
 
 class Pipe(ABC):

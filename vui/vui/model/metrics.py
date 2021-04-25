@@ -177,7 +177,8 @@ class Evaluator:
         path = self._filesystem.get_dataset_path(
             "r", self._config.ref_dataset_name)
 
-        samples_by_words = get_storage_from_wav_folder(path).as_dict()
+        samples_by_words = get_storage_from_wav_folder(
+            path, self._config.framerate).as_dict()
         words = list(samples_by_words.keys())
         samples_by_dictors = self._get_samples_by_dictors(samples_by_words)
 
@@ -200,16 +201,11 @@ class Evaluator:
     def _get_samples_by_dictors(self, samples_by_words: dict) -> list:
         samples_by_dictors = []
         words = list(samples_by_words.keys())
-        frames_length = self._config.framerate
 
         for i in range(self._config.test_size):
-            frames = np.zeros([len(words), frames_length])
+            frames = np.zeros([len(words), self._config.framerate])
             for j, samples_per_word in enumerate(samples_by_words.values()):
-                if len(samples_per_word[i]) < frames_length:
-                    frames[j] = np.pad(
-                        samples_per_word[i], (0, frames_length-len(samples_per_word[i])))
-                else:
-                    frames[j] = samples_per_word[i, :frames_length]
+                frames[j] = samples_per_word[i]
 
             embeddings = self._f2e_service.encode(frames)
 

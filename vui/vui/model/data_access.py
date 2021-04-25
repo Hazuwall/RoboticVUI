@@ -44,7 +44,7 @@ class ReferenceWordsDictionary():
         path = self.filesystem.get_dataset_path(
             "r", self.config.ref_dataset_name)
 
-        storage = get_storage_from_wav_folder(path)
+        storage = get_storage_from_wav_folder(path, self.config.framerate)
         words = storage.get_dataset_list()
         embeddings = []
         for word in words:

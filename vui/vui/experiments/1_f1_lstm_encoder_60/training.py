@@ -20,9 +20,7 @@ class Trainer(AcousticModelTrainer):
     def __init__(self, config, filesystem: FilesystemProvider,
                  acoustic_model: AcousticModelBase, evaluator: Evaluator, frontend: FrontendProcessorBase, stage: int) -> None:
         super(Trainer, self).__init__(
-            config, filesystem, acoustic_model, evaluator, stage)
-
-        self._frontend = frontend
+            config, filesystem, acoustic_model, evaluator, frontend, stage)
 
         # Classes initialization
         self._dataset = self.create_training_pipeline()

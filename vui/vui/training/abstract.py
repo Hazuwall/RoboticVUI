@@ -5,6 +5,7 @@ from vui.infrastructure.filesystem import FilesystemProvider
 from vui.model.abstract import AcousticModelBase
 from vui.model.metrics import AveragingTimer, Evaluator
 import vui.model.tf_utils as tf_utils
+from vui.frontend.abstract import FrontendProcessorBase
 
 
 class TrainerBase(ABC):
@@ -22,12 +23,14 @@ class TrainerBase(ABC):
 
 
 class AcousticModelTrainer(TrainerBase):
-    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase, evaluator: Evaluator, stage: int) -> None:
+    def __init__(self, config, filesystem: FilesystemProvider, acoustic_model: AcousticModelBase,
+                 evaluator: Evaluator, frontend: FrontendProcessorBase, stage: int) -> None:
         self._config = config
         self._filesystem = filesystem
         self._acoustic_model = acoustic_model
         self._evaluator = evaluator
         self._stage = stage
+        self._frontend = frontend
 
         logs_path = "{}\\stage{}".format(filesystem.get_logs_dir(), stage)
         self._summary_writer = tf.summary.create_file_writer(logs_path)

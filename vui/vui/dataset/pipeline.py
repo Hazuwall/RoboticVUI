@@ -196,10 +196,35 @@ class UnlabeledSource(SourcePipe):
         return x, np.asarray(indices)
 
 
-class UnlabeledSortedHarmonicsAugment(TransformPipe):
-    def __init__(self, raw_storage: Storage, frontend: FrontendProcessorBase, rate: float, framerate: float) -> None:
+class Frontend(TransformPipe):
+    def __init__(self, output_shape: list, frontend: FrontendProcessorBase) -> None:
+        super().__init__(output_shape)
+        self.frontend = frontend
+
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        return self.frontend.process(x), y
+
+
+class FramesAugment(TransformPipe):
+    def __init__(self, rate: float, framerate: float) -> None:
         super().__init__()
-        self.raw_storage = raw_storage
+        self.rate = rate
+        self.framerate = framerate
+
+    def process(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        aug_size = int(self.rate*len(x))
+        all_indices = range(len(y))
+        indices = random.sample(all_indices, aug_size)
+
+        x[indices] = augmentation.apply_some_filters(
+            x[indices], self.framerate)
+        return x, y
+
+
+class UnlabeledSortedHarmonicsAugment(TransformPipe):
+    def __init__(self, frames_storage: Storage, frontend: FrontendProcessorBase, rate: float, framerate: float) -> None:
+        super().__init__()
+        self.frames_storage = frames_storage
         self.rate = rate
         self.framerate = framerate
         self.frontend = frontend
@@ -211,7 +236,7 @@ class UnlabeledSortedHarmonicsAugment(TransformPipe):
         y_aug_indices = sorted(random.sample(y_indices, aug_size))
         y_aug = y[y_aug_indices]  # input y must be sorted
 
-        x_aug = self.raw_storage.fetch_subset_from_indices("", y_aug)
+        x_aug = self.frames_storage.fetch_subset_from_indices("", y_aug)
         x_aug = augmentation.apply_some_filters(
             x_aug, self.framerate)
 

@@ -48,9 +48,12 @@ class AcousticModelTrainer(TrainerBase):
 
     def merge_fine_tuning_dataset(self, x: pipeline.Pipe, size: int):
         storage = pipeline.get_wav_folder_storage(
-            self._config.ref_dataset_name).get_transformed(self._frontend.process)
-        y = pipeline.LabeledSource(self._config.frontend_shape, storage,
+            self._config.ref_dataset_name)
+        y = pipeline.LabeledSource([self._config.framerate], storage,
                                    batch_size=size, start_index=self._config.test_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
+        y = pipeline.FramesAugment(0.8, self._config.framerate)(y)
+        y = pipeline.Frontend(self._config.frontend_shape, self._frontend)(y)
+
         return pipeline.Merge(y)(x)
 
     @ property

@@ -12,7 +12,11 @@
 
    Добавить путь к папке bin в PATH
 
-3. Установить `pyaudio`
+3. Установить [rubberband](https://breakfastquay.com/rubberband/)
+
+   Добавить путь к папке в PATH
+
+4. Установить `pyaudio`
 
    - Для Python >=3.7:
 

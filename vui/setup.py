@@ -20,5 +20,5 @@ setuptools.setup(
     ],
     python_requires='>=3.6',
     install_requires=["matplotlib", "numpy", "tensorflow>=2.2.0", "keras",
-                      "coolname", "librosa", "h5py", "soundfile", "termcolor", "pydot_ng"]
+                      "coolname", "pyrubberband", "h5py", "soundfile", "termcolor", "pydot_ng"]
 )

@@ -2,7 +2,7 @@
 # Training
 batch_size = 72
 validation_size = 1020
-stages = 1
+stages = 2
 
 # Raw WAV
 framerate = 16000

@@ -62,11 +62,13 @@ class AcousticModel(AcousticModelBase):
         self._encoder: tf.keras.Model = init_model()
         self._stage_checkpoints[0] = self._weights_storage.load(
             self._encoder, self._stage_checkpoints[0])
+        self._stage_checkpoints[1] = self._stage_checkpoints[0]
 
     def save(self, step: int) -> None:
         self._weights_storage.save(
             self._encoder, step=step)
         self._stage_checkpoints[0] = step
+        self._stage_checkpoints[1] = step
 
     def encode(self, x: np.ndarray, training: bool = False) -> tf.Tensor:
         return self._encoder(x, training=training)

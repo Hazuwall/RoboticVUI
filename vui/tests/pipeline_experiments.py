@@ -53,7 +53,7 @@ def unlabeled_augment_test():
     dataset = pipeline.UnlabeledSource(
         tests.config.frontend_shape, harmonics_storage, batch_size=12, fetch_mode=pipeline.COUPLED_FETCH_MODE)
     raw_storage = pipeline.get_hdf_storage('r', "t_mx_Mix")
-    dataset = pipeline.UnlabeledSortedAugment(
+    dataset = pipeline.UnlabeledSortedHarmonicsAugment(
         raw_storage, FrontendMock(), tests.config.aug_rate, tests.config.framerate)(dataset)
 
     x, y = dataset.get_batch()

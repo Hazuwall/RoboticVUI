@@ -60,10 +60,10 @@ class Trainer(AcousticModelTrainer):
         storage = pipeline.get_hdf_storage('h', "t_mx_Mix")
         z = pipeline.UnlabeledSource(self._config.frontend_shape, storage,
                                      batch_size=self._config.cache_size, fetch_mode=pipeline.COUPLED_FETCH_MODE)
-        z = pipeline.Shuffle(patch_size=4)(z)
         storage = pipeline.get_hdf_storage('r', "t_mx_Mix")
-        z = pipeline.UnlabeledAugment(
+        z = pipeline.UnlabeledSortedHarmonicsAugment(
             storage, self._frontend, self._config.aug_rate, self._config.framerate)(z)
+        z = pipeline.Shuffle(patch_size=4)(z)
         z = pipeline.Cache(self._config.batch_size)(z)
 
         return pipeline.Merge(z)(x)

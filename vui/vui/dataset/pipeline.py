@@ -174,7 +174,7 @@ class UnlabeledSource(SourcePipe):
         return x, np.asarray(indices)
 
 
-class UnlabeledSortedAugment(TransformPipe):
+class UnlabeledSortedHarmonicsAugment(TransformPipe):
     def __init__(self, raw_storage: Storage, frontend: FrontendProcessorBase, rate: float, framerate: float) -> None:
         super().__init__()
         self.raw_storage = raw_storage

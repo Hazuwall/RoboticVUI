@@ -1,4 +1,5 @@
 import numpy as np
+from cProfile import Profile
 import vui.frontend.dsp as dsp
 import vui.dataset.augmentation as augmentation
 import vui.infrastructure.tests as tests
@@ -73,6 +74,19 @@ def apply_some_filters_test():
         frames_after, seg_length=tests.config.seg_length)
     tests.plot_matrix("Spectrogram after", sg)
     tests.output(frames_before, frames_after)
+
+
+def apply_some_filters_profile():
+    frames = tests.input_bulk(200)
+
+    profiler = Profile()
+    profiler.enable()
+
+    augmentation.apply_some_filters(
+        frames, tests.config.framerate)
+
+    profiler.disable()
+    profiler.print_stats()
 
 
 if __name__ == "__main__":

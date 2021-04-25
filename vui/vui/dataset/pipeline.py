@@ -119,6 +119,9 @@ class LabeledSource(SourcePipe):
             raise ValueError(
                 "A batch size = {} is not divisible by 4. The coupled fetch mode can not be used.".format(self.batch_size))
 
+        if len(self.output_shape) > 2:
+            raise ValueError("Too many dimensions.")
+
     def get_greatest_devisor(self, number: int, max_divisor: int):
         for divisor in range(max_divisor, 0, -1):
             if number % divisor == 0:
@@ -129,24 +132,42 @@ class LabeledSource(SourcePipe):
             self.labels, self.classes_per_batch))
         class_size = self.batch_size//self.classes_per_batch
         shape = self.output_shape
+        shape2d = shape if len(shape) == 2 else (1, shape[0])
 
-        x = np.zeros(
-            [self.classes_per_batch, class_size, shape[0], shape[1]])
-        y = np.zeros([self.classes_per_batch, class_size])
-
-        for class_i, label in enumerate(class_labels):
-            x[class_i, :] = self.storage.fetch_subset(
-                label, self.start_index, class_size, mode=self.inner_fetch_mode)
-            y[class_i, :] = class_i
+        x, y = self._prepare_batch(
+            class_labels, class_size, shape2d, do_expand=len(shape) == 1)
 
         if self.fetch_mode == COUPLED_FETCH_MODE:
             x = np.reshape(
-                x, [self.classes_per_batch, -1, 2, shape[0], shape[1]])
+                x, [self.classes_per_batch, -1, 2, shape2d[0], shape2d[1]])
             x = np.transpose(x, [1, 0, 2, 3, 4])
             y = np.reshape(y, [self.classes_per_batch, -1, 2])
             y = np.transpose(y, [1, 0, 2])
 
-        x = np.reshape(x, [-1, shape[0], shape[1]])
+        return self._reshape_for_output(x, y)
+
+    def _prepare_batch(self, class_labels: list, class_size: int, shape2d: tuple, do_expand: bool):
+        """Returns batch in the format [Class, Batch, Dim0, Dim1]."""
+
+        x = np.zeros(
+            [self.classes_per_batch, class_size, shape2d[0], shape2d[1]])
+        y = np.zeros([self.classes_per_batch, class_size])
+
+        for class_i, label in enumerate(class_labels):
+            class_batch = self.storage.fetch_subset(
+                label, self.start_index, class_size, mode=self.inner_fetch_mode)
+            if do_expand:
+                class_batch = np.expand_dims(class_batch, axis=1)
+            x[class_i, :] = class_batch
+            y[class_i, :] = class_i
+
+        return x, y
+
+    def _reshape_for_output(self, x: np.ndarray, y: np.ndarray):
+        if len(self.output_shape) == 2:
+            x = np.reshape(x, [-1, self.output_shape[0], self.output_shape[1]])
+        else:
+            x = np.reshape(x, [-1, self.output_shape[0]])
         y = np.reshape(y, [-1])
         return x, y
 

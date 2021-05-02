@@ -30,6 +30,7 @@ config = with_generated_params(config)
 
 if not config.verbose:
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+print("Build {}".format(config.build))
 
 
 def run(word_handler: Callable, duration: Optional[float] = None):

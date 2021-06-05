@@ -107,8 +107,20 @@ class VoiceUserInterfaceStub:
         pass
 
     def run(self, duration: Optional[float] = None, filter_words=True):
+        try:
+            print("Start recording...")
+
+            play_count = 0
+            while (play_count == 0) or (duration is None):
+                file_path = self.filesystem.get_test_recording_path()
+                self.play_and_recognize(file_path, filter_words)
+
+            print("Stop recording...")
+        except KeyboardInterrupt:
+            pass
+
+    def play_and_recognize(self, file_path: str, filter_words: bool):
         recognitions_per_sec = 4
-        file_path = self.filesystem.get_test_recording_path()
         frames_buffer = dsp.read(file_path)
         word_picker = BestWordPicker(
             self.config.silence_word, self.config.unknown_word, buffer_length=recognitions_per_sec)
@@ -118,7 +130,6 @@ class VoiceUserInterfaceStub:
 
         start_time = time.monotonic()
         fragment_index = 0
-        print("Start recording...")
         while True:
             word, weight = self.word_recognizer.recognize(frames_buffer)
             word, weight = word_picker.pick(word, weight)
@@ -133,8 +144,6 @@ class VoiceUserInterfaceStub:
             fragment_index += 1
             while time.monotonic() - start_time < (1 / recognitions_per_sec) * fragment_index:
                 time.sleep(0.05)
-
-        print("Stop recording...")
 
 
 class BestWordPicker:

@@ -1,9 +1,12 @@
 import numpy as np
 import pyaudio
 import time
+from playsound import playsound
 from typing import Callable, Optional, Tuple
 from vui.model.abstract import ClassifierBase
 from vui.model.services import FramesToEmbeddingService
+from vui.infrastructure.filesystem import FilesystemProvider
+import vui.frontend.dsp as dsp
 
 
 class WordRecognizer():
@@ -54,6 +57,8 @@ class VoiceUserInterface:
         buffer_length = self.config.framerate//2
         self.frames_buffer = np.zeros(buffer_length*3)
         audio = pyaudio.PyAudio()
+        word_picker = BestWordPicker(
+            self.config.silence_word, self.config.unknown_word, buffer_length=4)
 
         start_time = time.monotonic()
 
@@ -62,6 +67,7 @@ class VoiceUserInterface:
                                frame_count:] = self.__convert_to_frames_array(in_data)
 
             word, weight = self.word_recognizer.recognize(self.frames_buffer)
+            word, weight = word_picker.pick(word, weight)
             if (not filter_words) or (weight > self.config.min_word_weight):
                 self.word_handler(word, weight)
 
@@ -88,3 +94,80 @@ class VoiceUserInterface:
             stream.stop_stream()
             stream.close()
             audio.terminate()
+
+
+class VoiceUserInterfaceStub:
+    def __init__(self, config, filesystem: FilesystemProvider, word_recognizer: WordRecognizer, word_handler: Optional[Callable] = None):
+        self.config = config
+        self.filesystem = filesystem
+        self.word_recognizer = word_recognizer
+        self.word_handler = word_handler if word_handler is not None else self.__dummy_handler
+
+    def __dummy_handler(word: str, weight: float):
+        pass
+
+    def run(self, duration: Optional[float] = None, filter_words=True):
+        recognitions_per_sec = 4
+        file_path = self.filesystem.get_test_recording_path()
+        frames_buffer = dsp.read(file_path)
+        word_picker = BestWordPicker(
+            self.config.silence_word, self.config.unknown_word, buffer_length=recognitions_per_sec)
+
+        playsound(file_path, block=False)
+        time.sleep(1 / recognitions_per_sec)
+
+        start_time = time.monotonic()
+        fragment_index = 0
+        print("Start recording...")
+        while True:
+            word, weight = self.word_recognizer.recognize(frames_buffer)
+            word, weight = word_picker.pick(word, weight)
+            if (not filter_words) or (weight > self.config.min_word_weight):
+                self.word_handler(word, weight)
+
+            if len(frames_buffer) < self.config.framerate // recognitions_per_sec:
+                break
+            frames_buffer = frames_buffer[self.config.framerate //
+                                          recognitions_per_sec:]
+
+            fragment_index += 1
+            while time.monotonic() - start_time < (1 / recognitions_per_sec) * fragment_index:
+                time.sleep(0.05)
+
+        print("Stop recording...")
+
+
+class BestWordPicker:
+    def __init__(self, silence_word: str, unknown_word: str, buffer_length: int) -> None:
+        self.is_waiting_silence = False
+        self.silence_word = silence_word
+        self.unknown_word = unknown_word
+        self.buffer = []
+        self.buffer_length = buffer_length
+
+    def pick(self, word: str, weight: float):
+        is_silence = word == self.silence_word
+
+        if self.is_waiting_silence:
+            if is_silence:
+                self.is_waiting_silence = False
+            else:
+                return self.unknown_word, 0
+
+        if is_silence:
+            if len(self.buffer) == 0:
+                return word, weight
+        else:
+            self.buffer.append((word, weight))
+            if len(self.buffer) < self.buffer_length:
+                return self.unknown_word, 0
+
+        high_priority_items = [
+            item for item in self.buffer if item[0] != self.unknown_word]
+        if len(high_priority_items) == 0:
+            return self.buffer.pop(0)
+
+        best_item = max(high_priority_items, key=lambda x: x[1])
+        self.buffer.clear()
+        self.is_waiting_silence = True
+        return best_item

@@ -109,7 +109,10 @@ def get_word_recognizer():
 @services.transient
 def get_voice_user_interface(word_handler):
     import vui.recognition as module
-    return module.VoiceUserInterface(config, get_word_recognizer(), word_handler)
+    if config.use_test_recordings:
+        return module.VoiceUserInterfaceStub(config, get_filesystem_provider(), get_word_recognizer(), word_handler)
+    else:
+        return module.VoiceUserInterface(config, get_word_recognizer(), word_handler)
 
 
 @services.transient

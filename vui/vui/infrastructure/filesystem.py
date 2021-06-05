@@ -1,4 +1,5 @@
 import os
+import random
 import shutil
 import coolname
 from types import SimpleNamespace
@@ -25,6 +26,11 @@ class FilesystemProvider:
 
     def get_logs_dir(self) -> str:
         return self.get_experiment_dir() + "logs\\"
+
+    def get_test_recording_path(self) -> str:
+        filenames = os.listdir(self.config.test_recordings_dir)
+        filename = random.choice(filenames)
+        return self.config.test_recordings_dir + filename
 
     def get_model_dir(self, model_name: str) -> SimpleNamespace:
         model_dir = self.get_experiment_dir() + model_name + "\\"

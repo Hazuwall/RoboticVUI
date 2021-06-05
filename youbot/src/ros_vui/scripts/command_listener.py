@@ -4,10 +4,10 @@ import rospy
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 
-FORWARD = "forward"
-BACKWARD = "backward"
-LEFT = "left"
-RIGHT = "right"
+FORWARD = "vpered"
+BACKWARD = "nazad"
+LEFT = "vlevo"
+RIGHT = "vpravo"
 STOP = "stop"
 
 
@@ -19,9 +19,9 @@ def try_get_velocity(command: str) -> Tuple[bool, Twist]:
     elif command == BACKWARD:
         twist.linear.x = -0.2
     elif command == LEFT:
-        twist.angular.z = -0.2
-    elif command == RIGHT:
         twist.angular.z = 0.2
+    elif command == RIGHT:
+        twist.angular.z = -0.2
     elif command == STOP:
         pass
     else:

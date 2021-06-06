@@ -17,5 +17,5 @@ use_test_recordings = False
 # Training
 display_interval = 100
 checkpoint_interval = 1000
-test_size = 8
+test_size = 4
 verbose = False

@@ -12,7 +12,7 @@ min_word_weight = 0.75
 silence_word = "_silence"
 unknown_word = "_unknown"
 ref_dataset_name = "s_ru_RoboticCommands"
-use_test_recordings = True
+use_test_recordings = False
 
 # Training
 display_interval = 100

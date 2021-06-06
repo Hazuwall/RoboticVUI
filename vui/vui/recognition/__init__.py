@@ -114,6 +114,7 @@ class VoiceUserInterfaceStub:
             while (play_count == 0) or (duration is None):
                 file_path = self.filesystem.get_test_recording_path()
                 self.play_and_recognize(file_path, filter_words)
+                play_count += 1
 
             print("Stop recording...")
         except KeyboardInterrupt:
